@@ -5,29 +5,36 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 def select_columns(sheet, columns_to_remove):
+    columns_to_remove_value = []
+    last_input_clicked = None
+    clicked = False
+
     def add_custom_column():
         try:
             column_number = int(custom_column_entry.get())
             if column_number <= 0:
                 raise ValueError("Insira um número inteiro positivo.")
             
-            columns_to_remove.append(column_number)
+            if column_number not in columns_to_remove_value:
+                columns_to_remove_value.append(column_number)  # Usando append para adicionar à lista
+                logging.info(f"Colunas selecionadas: {columns_to_remove_value}")  # Log das colunas selecionadas
+                update_textbox()
+                confirm_selection(last_input_clicked)
+            else:
+                messagebox.showwarning("Aviso", "Esta coluna já foi adicionada.")
+
             custom_column_entry.delete(0, tk.END)
-            update_textbox()
         except ValueError as e:
             messagebox.showerror("Erro", str(e))
 
     def update_textbox():
         textbox.delete(1.0, tk.END)
-        columns_text = ' '.join(map(str, columns_to_remove))
+        columns_text = ' '.join(map(str, sorted(columns_to_remove_value)))  # Ordena as colunas
         textbox.insert(tk.END, columns_text)
 
-    columns_to_remove_value = []
-    clicked = False
-
     def confirm_selection(value):
-        nonlocal columns_to_remove_value
         nonlocal clicked
+        nonlocal last_input_clicked
 
         logging.info(f"Opção selecionada: {value}")
 
@@ -36,15 +43,18 @@ def select_columns(sheet, columns_to_remove):
             return None
 
         if value == "excluir":
-            columns_to_remove_value = columns_to_remove[:]
+            columns_to_remove.clear()
+            columns_to_remove.extend(columns_to_remove_value)
             clicked = True
         elif value == "manter":
             all_columns = set(range(1, sheet.max_column + 1))
-            columns_to_keep = list(all_columns - set(columns_to_remove))
-            columns_to_remove_value = columns_to_keep[:]
+            columns_to_keep = all_columns - set(columns_to_remove_value)
+            columns_to_remove.clear()
+            columns_to_remove.extend(columns_to_keep)
             clicked = True
 
-        logging.info(f"Colunas selecionadas para {value}: {columns_to_remove_value}")
+        last_input_clicked = value
+        logging.info(f"Colunas selecionadas: {columns_to_remove}")
         update_textbox()
 
     columns_window = tk.Tk()
@@ -99,7 +109,7 @@ def select_columns(sheet, columns_to_remove):
 
     columns_window.mainloop()
 
-    selected_columns = columns_to_remove_value
+    selected_columns = columns_to_remove[:]
     columns_window.destroy()
 
     return selected_columns
