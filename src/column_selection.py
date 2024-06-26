@@ -2,7 +2,6 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import logging
 
-# Configuração básica do logger
 logging.basicConfig(level=logging.INFO)
 
 def select_columns(sheet, columns_to_remove):
@@ -23,19 +22,30 @@ def select_columns(sheet, columns_to_remove):
         columns_text = ' '.join(map(str, columns_to_remove))
         textbox.insert(tk.END, columns_text)
 
-    def confirm_selection():
-        logging.info(f"Operação selecionada: {selected_operation}")  # Log da operação selecionada
-        if selected_operation == "excluir":
-            return columns_to_remove
-        elif selected_operation == "manter":
+    columns_to_remove_value = []
+    clicked = False  # Variável para verificar se uma opção foi clicada
+
+    def confirm_selection(value):
+        nonlocal columns_to_remove_value
+        nonlocal clicked
+
+        logging.info(f"Opção selecionada: {value}")
+
+        if not value:
+            messagebox.showerror("Erro", "Selecione uma opção: Excluir ou Manter.")
+            return None
+
+        if value == "excluir":
+            columns_to_remove_value = columns_to_remove[:]
+            clicked = True
+        elif value == "manter":
             all_columns = set(range(1, sheet.max_column + 1))
             columns_to_keep = list(all_columns - set(columns_to_remove))
-            return columns_to_keep
+            columns_to_remove_value = columns_to_keep[:]
+            clicked = True
 
-    def on_operation_change():
-        global selected_operation
-        selected_operation = operation_var.get()
-        logging.info(f"Operação alterada para: {selected_operation}")  # Log da mudança de operação
+        logging.info(f"Colunas selecionadas para {value}: {columns_to_remove_value}")
+        update_textbox()  # Atualiza o texto exibido após cada seleção
 
     columns_window = tk.Tk()
     columns_window.title("Selecione as Colunas para Remover")
@@ -56,12 +66,20 @@ def select_columns(sheet, columns_to_remove):
 
     ttk.Separator(columns_window, orient=tk.HORIZONTAL).grid(row=3, columnspan=3, sticky="ew", padx=20, pady=10)
 
-    # Opções de Excluir ou Manter
-    global selected_operation
-    operation_var = tk.StringVar()  # Não define um valor inicial aqui
-    selected_operation = "excluir"  # Valor inicial padrão
-    ttk.Radiobutton(columns_window, text="Excluir", variable=operation_var, value="excluir", command=on_operation_change).grid(row=4, column=0, padx=20, pady=5, sticky=tk.W)
-    ttk.Radiobutton(columns_window, text="Manter", variable=operation_var, value="manter", command=on_operation_change).grid(row=5, column=0, padx=20, pady=5, sticky=tk.W)
+    # Opções de Excluir ou Manter com Radio Buttons
+    radio_var = tk.StringVar()
+
+    radio_excluir = tk.Radiobutton(columns_window, text="Excluir", variable=radio_var, value="excluir", 
+                                   command=lambda: confirm_selection("excluir"))
+    radio_excluir.grid(row=4, column=0, padx=20, pady=10)
+
+    radio_manter = tk.Radiobutton(columns_window, text="Manter", variable=radio_var, value="manter", 
+                                  command=lambda: confirm_selection("manter"))
+    radio_manter.grid(row=4, column=1, padx=20, pady=10)
+
+    # Exibição da quantidade de colunas disponíveis para excluir
+    available_columns_label = ttk.Label(columns_window, text=f"Colunas disponíveis: {sheet.max_column}")
+    available_columns_label.grid(row=5, column=0, columnspan=2, padx=20, pady=5, sticky=tk.W)
 
     # Exibição dos valores adicionados em linha
     textbox_label = ttk.Label(columns_window, text="Colunas Selecionadas:")
@@ -72,11 +90,18 @@ def select_columns(sheet, columns_to_remove):
 
     update_textbox()
 
-    confirm_button = ttk.Button(columns_window, text="Confirmar", command=lambda: columns_window.quit())
+    def on_confirm_button():
+        if not clicked:
+            messagebox.showerror("Erro", "Selecione uma opção: Excluir ou Manter.")
+        else:
+            columns_window.quit()
+
+    confirm_button = ttk.Button(columns_window, text="Confirmar", command=on_confirm_button)
     confirm_button.grid(row=8, columnspan=3, pady=5)
 
     columns_window.mainloop()
+
+    selected_columns = columns_to_remove_value
     columns_window.destroy()
 
-    # Retorna as colunas a serem removidas ou mantidas baseado na escolha do usuário
-    return confirm_selection()
+    return selected_columns

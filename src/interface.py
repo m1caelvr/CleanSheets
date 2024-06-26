@@ -1,11 +1,15 @@
-# src/interface.py
-
 import tkinter as tk
 from tkinter import filedialog
 from openpyxl import load_workbook
 from src.sheet_selection import select_sheet
 from src.column_selection import select_columns
 from src.file_operations import remove_columns
+
+def show_excluded_columns(columns_to_remove):
+    if columns_to_remove:
+        print(f"Colunas selecionadas para exclusão: {columns_to_remove}")
+    else:
+        print("Nenhuma coluna foi selecionada para remoção.")
 
 def select_file_and_remove_columns():
     root = tk.Tk()
@@ -22,8 +26,9 @@ def select_file_and_remove_columns():
 
         if sheet_name in workbook.sheetnames:
             sheet = workbook[sheet_name]
-            columns_to_remove = []
-            select_columns(sheet, columns_to_remove)
+            columns_to_remove = select_columns(sheet, [])
+
+            show_excluded_columns(columns_to_remove)
 
             if columns_to_remove:
                 remove_columns(file_path, sheet_name, columns_to_remove)
