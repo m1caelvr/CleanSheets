@@ -1,0 +1,24 @@
+pandas
+openpyxl
+xlrd
+tk
+
+CleanSheets_EQS/
+│
+├── src/
+│   ├── components/
+│   │   ├── __init__.py
+│   │   ├── column_entry.py
+│   │   ├── file_info.py
+│   │   ├── interface_utils.py
+│   │   ├── settings.py
+│   │   └── title_entry.py
+│   ├── __init__.py
+│   ├── filter.py
+│   └── interface.py
+│
+├── run.py
+├── README.md
+└── requirements.txt
+
+CleanSheets_EQS
