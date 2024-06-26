@@ -23,7 +23,7 @@ def select_columns(sheet, columns_to_remove):
         textbox.insert(tk.END, columns_text)
 
     columns_to_remove_value = []
-    clicked = False  # Variável para verificar se uma opção foi clicada
+    clicked = False
 
     def confirm_selection(value):
         nonlocal columns_to_remove_value
@@ -45,7 +45,7 @@ def select_columns(sheet, columns_to_remove):
             clicked = True
 
         logging.info(f"Colunas selecionadas para {value}: {columns_to_remove_value}")
-        update_textbox()  # Atualiza o texto exibido após cada seleção
+        update_textbox()
 
     columns_window = tk.Tk()
     columns_window.title("Selecione as Colunas para Remover")
@@ -77,11 +77,9 @@ def select_columns(sheet, columns_to_remove):
                                   command=lambda: confirm_selection("manter"))
     radio_manter.grid(row=4, column=1, padx=20, pady=10)
 
-    # Exibição da quantidade de colunas disponíveis para excluir
     available_columns_label = ttk.Label(columns_window, text=f"Colunas disponíveis: {sheet.max_column}")
     available_columns_label.grid(row=5, column=0, columnspan=2, padx=20, pady=5, sticky=tk.W)
 
-    # Exibição dos valores adicionados em linha
     textbox_label = ttk.Label(columns_window, text="Colunas Selecionadas:")
     textbox_label.grid(row=6, column=0, padx=20, pady=5, sticky=tk.W)
 
