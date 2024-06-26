@@ -2,15 +2,10 @@
 
 CleanSheets é uma ferramenta para manipulação de planilhas Excel, permitindo a seleção e remoção de colunas de forma interativa.
 
-## Instalação
+## Como instalar
 
 1. Baixe o executável mais recente [aqui](https://github.com/m1caelvr/CleanSheets/raw/main/dist/run.exe).
 2. Execute o arquivo baixado para instalar CleanSheets.
-
-## Uso
-
-- Execute CleanSheets e selecione as colunas que deseja remover de uma planilha Excel.
-- Confirme as seleções e as colunas selecionadas serão removidas do arquivo.
 
 ## Como Usar
 
