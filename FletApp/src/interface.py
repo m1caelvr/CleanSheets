@@ -38,3 +38,4 @@ def page(page: ft.Page):
     page.update()
     pass
     
+ft.app(target=page)
