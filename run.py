@@ -1,4 +1,5 @@
-import flet
-from app.main import homePage
+import flet as ft
+from app.main import main
 
-flet.app(target=homePage)
+if __name__ == "__main__":
+    ft.app(target=main)
