@@ -1,18 +1,38 @@
-from openpyxl import load_workbook
+# file_treatment.py archive
 
+import flet as ft
+from openpyxl import load_workbook
+    
+    
 def file_treatment(file):
+    title_row=1
+    
     try:
         wb = load_workbook(file.path)
+        
         sheet = wb.active
-        cell_value = sheet['A1'].value
-        print(f'Valor da célula A1: {cell_value}')
-
+        
+        def define_row_with_value():
+            for row in sheet.iter_rows():
+                for cell in row:
+                    if cell.value is not None:
+                        return cell.value, cell.row
+                    
+        row_with_value = define_row_with_value()
+        cell_value = row_with_value[0]
+        cell_row = row_with_value[1]
+        
+        print(f'row with value:    {cell_row}')
+        
+        title_row_values = sheet[cell_row]
+        column_names = [cell.value for cell in title_row_values]
+                
         num_cols = sheet.max_column
         print(f'Número de colunas na planilha: {num_cols}')
 
         wb.close()
 
-        return cell_value, num_cols
+        return column_names, num_cols, wb.sheetnames
     except Exception as e:
         print(f"Erro ao processar arquivo: {e}")
         return None, None
