@@ -5,7 +5,7 @@ def main(page: ft.Page):
     initial_width = 550
     initial_height = 600
     page.window_width = initial_width
-    page.window_height = 600
+    page.window_height = initial_height
     page.title = 'CleanSheets'
     page.window_always_on_top = True
     page.scroll = 'always'
@@ -26,7 +26,15 @@ def main(page: ft.Page):
         size=20,
     )
     
+    selected_sheet = None
+    selected_file = None  # Variável global para armazenar o arquivo selecionado
+
     def handle_close(e):
+        if selected_sheet and selected_file:
+            column_names = ftm.get_columns_from_sheet(selected_file, selected_sheet)
+            inputs_create(len(column_names), column_names)
+            dlg_modal.open = False
+            page.update()
         page.add(ft.Text("Modal fechado"))
         page.close(dlg_modal)
         
@@ -47,25 +55,31 @@ def main(page: ft.Page):
     
     def on_result(e: ft.FilePickerResultEvent):
         SUPPORTED_EXTENSIONS = ['xlsx', 'xls']
-        
+        nonlocal selected_file 
+
         if e.files:
-            file_name_value = e.files[0].name
-            file_path = e.files[0].path
+            selected_file = e.files[0]  
+            file_name_value = selected_file.name
+            file_path = selected_file.path
             ext = file_name_value.split('.')[-1].lower()
-            result_text.value = f"Caminho: {file_path}"
+            file_path_text.value = f"Caminho: {file_path}"
 
             if ext in SUPPORTED_EXTENSIONS:
-                data_file, columns, sheetnames = ftm.file_treatment(e.files[0])
+                data_file, columns, sheetnames = ftm.file_treatment(selected_file)
                 
-                print(f'sheet:   {sheetnames}')
-                
+                print(f'sheet: {sheetnames}')
+
+                def on_radio_selected(ev):
+                    nonlocal selected_sheet
+                    selected_sheet = ev.control.value
+
                 radio_group = ft.RadioGroup(
                     content=ft.Column(
                         controls=[
                             ft.Container(
                                 content=ft.Radio(
                                     value=sheet,
-                                    label=f'{sheet}',
+                                    label=sheet,
                                 ),
                                 border=ft.border.all(1, ft.colors.WHITE10),
                                 border_radius=ft.border_radius.all(7),
@@ -75,41 +89,32 @@ def main(page: ft.Page):
                         ],
                         spacing=10,
                         expand=True,
-                    )
+                    ),
+                    on_change=on_radio_selected
                 )
-                
-                # modal_content = ft.Container(
-                #     content=radio_group,
-                #     border=ft.border.all(1, ft.colors.BLACK),
-                #     expand=False,
-                # )
                 
                 dlg_modal.content = radio_group
                 
                 page.dialog = dlg_modal
                 dlg_modal.open = True
                 
-                num_cols = columns if columns != 0 else 0
-                
                 file_name.value = f"Arquivo: {file_name_value}"
 
                 if data_file is not None:
-                    result_columns.value = f'Número de colunas: {num_cols}'
+                    result_columns.value = f'Número de colunas: {columns}'
                 else:
                     result_title.value = 'Erro:'
-                    result_text.value = 'Erro ao processar arquivo.'
-
-                inputs_create(num_cols, data_file)
+                    file_path_text.value = 'Erro ao processar arquivo.'
             else:
                 result_title.value = 'Erro:'
-                result_text.value = 'Apenas arquivos de planilha (Excel) são permitidos.'
+                file_path_text.value = 'Apenas arquivos de planilha (Excel) são permitidos.'
 
             page.update()
 
     file_picker = ft.FilePicker(on_result=on_result)
     file_name = ft.Text()
     result_title = ft.Text(size=16)
-    result_text = ft.Text()
+    file_path_text = ft.Text()
     result_columns = ft.Text()
 
     page.overlay.append(file_picker)
@@ -158,9 +163,11 @@ def main(page: ft.Page):
                     ],
                     spacing=10,
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    wrap=True,
+                    expand=True,
                 ),
                 checkboxes_row,
-                result_text,
+                file_path_text,
                 result_title,
             ],
         )
