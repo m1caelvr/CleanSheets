@@ -1,16 +1,25 @@
-import flet as ft
 from openpyxl import load_workbook
 
-def file_treatment(file):
+def file_treatment(file, treatment, value_line):
     try:
         wb = load_workbook(file.path)
         sheet = wb.active
 
         def define_row_with_value():
-            for row in sheet.iter_rows():
-                for cell in row:
-                    if cell.value is not None:
-                        return cell.value, cell.row
+            if treatment == 'automatic':
+                best_match_row = None
+                best_match_value = None
+                
+                for row in sheet.iter_rows():
+                    for cell in row:
+                        if cell.value is not None:
+                            if best_match_row is None or cell.row < best_match_row:
+                                best_match_row = cell.row
+                                best_match_value = cell.value
+                                break
+                return best_match_value, best_match_row
+            else:
+                return value_line
 
         row_with_value = define_row_with_value()
         cell_row = row_with_value[1]

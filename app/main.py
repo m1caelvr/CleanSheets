@@ -1,6 +1,7 @@
 import flet as ft
 import app.controllers.file_treatment as ftm
 import app.controllers.delete_file as delf
+import openpyxl as op
 
 def main(page: ft.Page):
     initial_width = 550
@@ -49,7 +50,6 @@ def main(page: ft.Page):
         page.update()
 
     def inputs_create(num_checkboxes, column_names):
-        print(f'column_names: {column_names}')
         checkboxes.clear()
         for i in range(num_checkboxes):
             checkbox = ft.Checkbox(
@@ -148,13 +148,13 @@ def main(page: ft.Page):
         nonlocal selected_file 
 
         if e.files:
-            selected_file = e.files[0]  
+            selected_file = e.files[0]
             file_name_value = selected_file.name
             file_path = selected_file.path
             ext = file_name_value.split('.')[-1].lower()
 
             if ext in SUPPORTED_EXTENSIONS:
-                data_file, sheetnames = ftm.file_treatment(selected_file)
+                data_file, sheetnames = ftm.file_treatment(selected_file, 'automatic', 1)
                 
                 print(f'sheet: {sheetnames}')
 
@@ -257,22 +257,52 @@ def main(page: ft.Page):
         ),
         on_change=on_radio_change,
     )
+    
+    def get_action_message(action, column_count):
+        print(f'quantidade:          {column_count}')
+        if column_count > 1:
+            return "mantidas" if action == "keep" else "deletadas"
+        else:
+            return "mantida" if action == "keep" else "deletada"
+    
+    def clear_page(action, selected_columns):
+        action_trated = get_action_message(action, len(selected_columns))
+        columns_text = 'Colunas' if len(selected_columns) > 1 else 'Coluna'
+         
+        print(f"Ação: {action}, Colunas: {selected_columns}")
+        
+        home_area_route.content = ft.Column(
+            controls=[
+                ft.Text(f"{columns_text}: {selected_columns} {action_trated} com sucesso!", size=16, weight="bold"),
+                ft.Text(f"Para fazer um novo upload, Reinicie o app."),
+            ],
+            width=initial_width,
+            alignment=ft.MainAxisAlignment.START,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            expand=True,
+        )
+        
+        page.update()
 
     def delete_columns():
-        selected_columns = [cb.content.label for cb in checkboxes if cb.content.value]
-        all_columns = [cb.content.label for cb in checkboxes]
-        
-        if radio_group_columns.value == "keep":
-            columns_to_keep = [column for column in all_columns if column not in selected_columns]
-            delf.delete_columns(selected_file, selected_sheet, columns_to_keep)
-        elif radio_group_columns.value == "delete":
-            delf.delete_columns(selected_file, selected_sheet, selected_columns)
-        else:
-            print("Nenhuma ação selecionada")
-
+        selected_columns = [cb.content.label.split(' - ')[0] for cb in checkboxes if cb.content.value]
+        selected_columns = list(map(int, selected_columns))
         if selected_columns:
             action = radio_group_columns.value
-            print(f"Ação: {action}, Colunas: {selected_columns}")
+            file_path = selected_file.path
+            sheet_name = selected_sheet
+            
+            if action == "delete":
+                delf.delete_columns(file_path, sheet_name, selected_columns)
+            else:
+                workbook = op.load_workbook(filename=file_path)
+                sheet = workbook[sheet_name]
+                all_columns = list(range(1, sheet.max_column + 1))
+                columns_to_keep = [col for col in all_columns if col not in selected_columns]
+                delf.delete_columns(file_path, sheet_name, columns_to_keep)
+                workbook.close()
+
+            clear_page(action, selected_columns)
         else:
             print("Nenhuma coluna selecionada")
 
