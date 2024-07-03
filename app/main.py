@@ -12,13 +12,13 @@ def main(page: ft.Page):
     page.scroll = 'always'
     page.horizontal_alignment = 'center'
     
-    title = ft.Text(
+    title_value = ft.Text(
         size=25,
         weight="bold",
         value='CleanSheets, XLS Minifier',
     )
-    display = ft.Row(
-        controls=[title],
+    title = ft.Row(
+        controls=[title_value],
         alignment='center',
     )
 
@@ -35,6 +35,18 @@ def main(page: ft.Page):
     )
     
     checkboxes = []
+    selected_sheet = None
+    selected_file = None
+
+    def update_selected_columns():
+        selected_columns = [cb.content.label for cb in checkboxes if cb.content.value]
+        if selected_columns:
+            selected_columns_text.value = f'Colunas selecionadas:\n' + '  |  '.join(selected_columns)
+            selected_columns_container.visible = True
+        else:
+            selected_columns_container.visible = False
+
+        page.update()
 
     def inputs_create(num_checkboxes, column_names):
         print(f'column_names: {column_names}')
@@ -45,6 +57,7 @@ def main(page: ft.Page):
                 value=False,
                 width=130,
                 height=30,
+                on_change=lambda _: update_selected_columns()
             )
             checkbox_container = ft.Container(
                 content=checkbox,
@@ -57,9 +70,6 @@ def main(page: ft.Page):
         page.update()
         print('inputs created')
     
-    selected_sheet = None
-    selected_file = None
-    
     def handle_close(e):
         if selected_sheet and selected_file:
             column_names = ftm.get_columns_from_sheet(selected_file, selected_sheet)
@@ -71,10 +81,54 @@ def main(page: ft.Page):
             page.update()
             
         page.close(dlg_modal)
-        
+    
+    width_input = 200
+
+    number_input = ft.TextField(
+        keyboard_type=ft.KeyboardType.NUMBER,
+        label="Exemplo: '1' ",
+        visible=False,
+        width=width_input,
+    )
+            
+    def toggle_number_input(i):
+        print(f'index:   {i}')
+        if i == 1:
+            number_input.visible = True
+        else:
+            number_input.visible = False
+        page.update()
+
+    dropdown_and_number_input_row = ft.Row(
+        controls=[
+            ft.Dropdown(
+                label="Selecionar primeira linha",
+                options=[
+                    ft.dropdown.Option(
+                        text="Automático",
+                        on_click=lambda _, index=0: toggle_number_input(index),
+                    ),
+                    ft.dropdown.Option(
+                        text="Manual",
+                        on_click=lambda _, index=1: toggle_number_input(index),
+                    ),
+                ],
+                width=width_input,
+                text_size=14,
+            ),
+            number_input,
+        ],
+        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+        width=initial_width,
+    )
+
     dlg_modal = ft.AlertDialog(
         modal=True,
-        title=ft.Text("Planilhas Disponíveis"),
+        title=ft.Row(
+            controls=[ft.Text("Planilhas Disponíveis", size=20)],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            wrap=True,
+        ),
         actions=[
             ft.Row(
                 controls=[
@@ -88,6 +142,8 @@ def main(page: ft.Page):
     )
     
     def on_result(e: ft.FilePickerResultEvent):
+        selected_columns_container.visible = False
+
         SUPPORTED_EXTENSIONS = ['xlsx', 'xls']
         nonlocal selected_file 
 
@@ -110,10 +166,11 @@ def main(page: ft.Page):
 
                     for i, container in enumerate(radio_containers):
                         if i == index:
-                            container.bgcolor = ft.colors.WHITE10
+                            container.bgcolor = ft.colors.OUTLINE_VARIANT
+
                         else:
                             container.bgcolor = ft.colors.TRANSPARENT
-                        print(f'clicked:  {index} / {i} / {container}')
+                        # print(f'clicked:  {index} / {i}')
                         
                     page.update()
 
@@ -143,7 +200,11 @@ def main(page: ft.Page):
                 ]
                 
                 radio_group = ft.Column(
-                    controls=radio_containers,
+                    controls=[
+                        dropdown_and_number_input_row,
+                        number_input,
+                        *radio_containers,
+                    ],
                     spacing=10,
                     width=initial_width,
                     expand=True,
@@ -181,6 +242,65 @@ def main(page: ft.Page):
         text="Upload",
     )
 
+
+    def on_radio_change(e):
+        delete_button.disabled = False
+        page.update()
+
+    radio_group_columns = ft.RadioGroup(
+        content=ft.Row(
+            controls=[
+                ft.Radio(value="delete", label="Excluir colunas"),
+                ft.Radio(value="keep", label="Manter colunas"),
+            ],
+            alignment=ft.MainAxisAlignment.CENTER,
+        ),
+        on_change=on_radio_change,
+    )
+
+    def delete_columns():
+        selected_columns = [cb.content.label for cb in checkboxes if cb.content.value]
+        all_columns = [cb.content.label for cb in checkboxes]
+        
+        if radio_group_columns.value == "keep":
+            columns_to_keep = [column for column in all_columns if column not in selected_columns]
+            delf.delete_columns(selected_file, selected_sheet, columns_to_keep)
+        elif radio_group_columns.value == "delete":
+            delf.delete_columns(selected_file, selected_sheet, selected_columns)
+        else:
+            print("Nenhuma ação selecionada")
+
+        if selected_columns:
+            action = radio_group_columns.value
+            print(f"Ação: {action}, Colunas: {selected_columns}")
+        else:
+            print("Nenhuma coluna selecionada")
+
+    delete_button = ft.ElevatedButton(
+        on_click=lambda _: delete_columns(),
+        text="Deletar colunas",
+        disabled=True,
+    )
+
+    selected_columns_text = ft.Text(text_align=ft.TextAlign.CENTER)
+    selected_columns_container = ft.Container(
+        content=ft.Column(
+            width=initial_width,
+            controls=[
+                selected_columns_text,
+                radio_group_columns,
+                delete_button,
+            ],
+            alignment=ft.MainAxisAlignment.START,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        visible=False,
+        width=initial_width,
+        padding=ft.padding.all(10),
+        border=ft.border.all(1, ft.colors.OUTLINE_VARIANT),
+        border_radius=ft.border_radius.all(7),
+    )
+
     result_container = ft.Container(
         width=initial_width,
         content=ft.Column(
@@ -195,14 +315,16 @@ def main(page: ft.Page):
                     wrap=True,
                     width=initial_width,
                 ),
-                checkboxes_row,
                 file_path_text,
+                checkboxes_row,
                 result_title,
+                selected_columns_container,
             ]
         )
     )
 
-    wrapper = ft.Container(
+    home_area_route = ft.Container(
+        visible=True,
         padding=ft.margin.all(20),
         width=initial_width,
         content=ft.Column(
@@ -216,12 +338,50 @@ def main(page: ft.Page):
             ],
         ),
     )
+
+    EQS_title_value = ft.Text(
+        value='EQS area',
+        size=20,
+    )
+
+    EQS_area_route = ft.Container(
+        visible=False,
+        padding=ft.margin.all(20),
+        width=initial_width,
+        content=ft.Column(
+            controls=[
+                ft.Row(
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    controls=[EQS_title_value]
+                ),
+                ft.ElevatedButton(
+                    width=initial_width,
+                    text="Iniciar",
+                )
+            ]
+        )
+    )
+
+    def changed_tab(e):
+        my_index = e.control.selected_index
+        home_area_route.visible = True if my_index == 0 else False
+        EQS_area_route.visible = True if my_index == 1 else False
+        page.update()
     
-    page.update()
+    page.navigation_bar = ft.NavigationBar(
+        border=ft.border.only(top=ft.border.BorderSide(1, "black")),
+        on_change=changed_tab,
+        selected_index=0,
+        destinations= [
+            ft.NavigationBarDestination(icon=ft.icons.HOME, label='Inicio'),
+            ft.NavigationBarDestination(icon=ft.icons.WORK, label='EQS area'),
+        ]
+    )
 
     page.add(
-        display,
-        wrapper,
+        title,
+        home_area_route,
+        EQS_area_route,
     )
 
     page.update()
