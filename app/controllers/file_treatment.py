@@ -1,58 +1,38 @@
 from openpyxl import load_workbook
 
-def file_treatment(file, treatment, value_line):
+def file_treatment(file):
     try:
         wb = load_workbook(file.path)
-        sheet = wb.active
-
-        def define_row_with_value():
-            if treatment == 'automatic':
-                best_match_row = None
-                best_match_value = None
-                
-                for row in sheet.iter_rows():
-                    for cell in row:
-                        if cell.value is not None:
-                            if best_match_row is None or cell.row < best_match_row:
-                                best_match_row = cell.row
-                                best_match_value = cell.value
-                                break
-                return best_match_value, best_match_row
-            else:
-                return value_line
-
-        row_with_value = define_row_with_value()
-        cell_row = row_with_value[1]
-
-        title_row_values = sheet[cell_row]
-        column_names = [cell.value for cell in title_row_values]
-
+        sheetnames = wb.sheetnames
+        column_counts = {sheet: wb[sheet].max_column for sheet in sheetnames}
         wb.close()
-
-        return column_names, wb.sheetnames
+        return sheetnames, column_counts
     except Exception as e:
         print(f"Erro ao processar arquivo: {e}")
         return None, None
 
-def get_columns_from_sheet(file, sheet_name):
+def get_columns_from_sheet(file, sheet_name, treatment, specified):
     try:
         wb = load_workbook(file.path)
         sheet = wb[sheet_name]
 
-        def define_row_with_value():
-            for row in sheet.iter_rows():
-                for cell in row:
+        if treatment == 'automatic':
+            column_names = []
+            max_rows = sheet.max_row if sheet.max_row < 10 else 10
+            
+            for col in sheet.iter_cols(min_row=1, max_row=max_rows):
+                column_name = None
+                for cell in col:
                     if cell.value is not None:
-                        return cell.value, cell.row
-
-        row_with_value = define_row_with_value()
-        cell_row = row_with_value[1]
-
-        title_row_values = sheet[cell_row]
-        column_names = [cell.value for cell in title_row_values]
+                        column_name = cell.value
+                        break
+                column_names.append(column_name)
+        else:
+            column_names = [cell.value for cell in sheet[specified]]
 
         wb.close()
 
+        # print(column_names)
         return column_names
     except Exception as e:
         print(f"Erro ao processar arquivo: {e}")

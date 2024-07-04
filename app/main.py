@@ -38,6 +38,10 @@ def main(page: ft.Page):
     checkboxes = []
     selected_sheet = None
     selected_file = None
+    selected_treatment = "automatic"
+    selected_columns_quantity = 0
+    line_specified = 1
+    value_line = 0
 
     def update_selected_columns():
         selected_columns = [cb.content.label for cb in checkboxes if cb.content.value]
@@ -49,11 +53,11 @@ def main(page: ft.Page):
 
         page.update()
 
-    def inputs_create(num_checkboxes, column_names):
+    def inputs_create(column_names):
         checkboxes.clear()
-        for i in range(num_checkboxes):
+        for i, column_name in enumerate(column_names):
             checkbox = ft.Checkbox(
-                label=f'{i+1} - {column_names[i]}' if i < len(column_names) else f'None {i+1}',
+                label=f'{i+1} - {column_name}',
                 value=False,
                 width=130,
                 height=30,
@@ -69,20 +73,46 @@ def main(page: ft.Page):
         checkboxes_row.controls = checkboxes
         page.update()
         print('inputs created')
-    
+
+    action_button_style = ft.ButtonStyle(color=ft.colors.BLUE)
+    banner = ft.Banner(
+        bgcolor=ft.colors.AMBER_100,
+        leading=ft.Icon(ft.icons.WARNING_AMBER_ROUNDED, color=ft.colors.AMBER, size=40),
+        content=ft.Text(
+            value="Selecione uma planilha",
+            color=ft.colors.BLACK,
+        ),
+        actions=[
+            ft.TextButton(text="Retry", style=action_button_style, on_click=lambda _: page.close(banner))
+        ],
+    )
+
     def handle_close(e):
+        nonlocal selected_sheet, selected_file, selected_treatment, line_specified
+        
         if selected_sheet and selected_file:
-            column_names = ftm.get_columns_from_sheet(selected_file, selected_sheet)
-            inputs_create(len(column_names), column_names)
+            _, column_counts = ftm.file_treatment(selected_file)
             
-            result_columns.value = f'Número de colunas: {len(column_names)}'
-            
-            dlg_modal.open = False
-            page.update()
-            
-        page.close(dlg_modal)
-    
-    width_input = 200
+            if selected_sheet in column_counts:
+                line_specified = number_input.value
+
+                selected_columns = ftm.get_columns_from_sheet(selected_file, selected_sheet, selected_treatment, line_specified)
+
+                print(f'selected_columns:       {selected_columns}')
+                
+                inputs_create(selected_columns)
+                
+                result_columns.value = f'Número de colunas: {len(selected_columns)}'
+                
+                dlg_modal.open = False
+                page.update()
+            else:
+                print(f"Planilha '{selected_sheet}' não encontrada nos dados de contagem de colunas.")
+        else:
+            print("Selecione um arquivo e uma planilha antes de continuar.")
+            page.open(banner)
+
+    width_input = 190
 
     number_input = ft.TextField(
         keyboard_type=ft.KeyboardType.NUMBER,
@@ -92,34 +122,35 @@ def main(page: ft.Page):
     )
             
     def toggle_number_input(i):
-        print(f'index:   {i}')
         if i == 1:
             number_input.visible = True
         else:
             number_input.visible = False
         page.update()
 
-    dropdown_and_number_input_row = ft.Row(
-        controls=[
-            ft.Dropdown(
-                label="Selecionar primeira linha",
-                options=[
-                    ft.dropdown.Option(
-                        text="Automático",
-                        on_click=lambda _, index=0: toggle_number_input(index),
-                    ),
-                    ft.dropdown.Option(
-                        text="Manual",
-                        on_click=lambda _, index=1: toggle_number_input(index),
-                    ),
-                ],
-                width=width_input,
-                text_size=14,
+    def on_dropdown_change(e):
+        nonlocal selected_treatment, value_line
+        selected_treatment = e.control.value
+        value_line = number_input.value if selected_treatment == "manual" else 1
+
+        toggle_number_input(1 if selected_treatment == "manual" else 0)
+
+    dropdown_and_number_input_row = ft.Dropdown(
+        label="Selecionar primeira linha",
+        options=[
+            ft.dropdown.Option(
+                text="Automático",
+                key="automatic",
             ),
-            number_input,
+            ft.dropdown.Option(
+                text="Manual",
+                key="manual",
+            ),
         ],
-        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-        width=initial_width,
+        value="automatic",
+        width=width_input,
+        text_size=14,
+        on_change=on_dropdown_change,
     )
 
     dlg_modal = ft.AlertDialog(
@@ -145,7 +176,7 @@ def main(page: ft.Page):
         selected_columns_container.visible = False
 
         SUPPORTED_EXTENSIONS = ['xlsx', 'xls']
-        nonlocal selected_file 
+        nonlocal selected_file
 
         if e.files:
             selected_file = e.files[0]
@@ -154,10 +185,8 @@ def main(page: ft.Page):
             ext = file_name_value.split('.')[-1].lower()
 
             if ext in SUPPORTED_EXTENSIONS:
-                data_file, sheetnames = ftm.file_treatment(selected_file, 'automatic', 1)
+                sheetnames, columns_sheet = ftm.file_treatment(selected_file)
                 
-                print(f'sheet: {sheetnames}')
-
                 def on_container_click(index):
                     page.update()
                     
@@ -167,10 +196,8 @@ def main(page: ft.Page):
                     for i, container in enumerate(radio_containers):
                         if i == index:
                             container.bgcolor = ft.colors.OUTLINE_VARIANT
-
                         else:
                             container.bgcolor = ft.colors.TRANSPARENT
-                        # print(f'clicked:  {index} / {i}')
                         
                     page.update()
 
@@ -179,18 +206,18 @@ def main(page: ft.Page):
                         content=ft.Row(
                             controls=[
                                 ft.Text(
-                                    sheet,
+                                    value=f"Planilha: {sheet}",
                                     size=14,
                                 ),
                                 ft.Text(
-                                    value=f"Colunas: {len(ftm.get_columns_from_sheet(selected_file, sheet))}",
+                                    value=f"Colunas: {columns_sheet.get(sheet, 0)}",
                                     size=11,
                                 )
                             ],
                             spacing=5,
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         ),
-                        border=ft.border.all(1, ft.colors.WHITE10),
+                        border=ft.border.all(1, ft.colors.OUTLINE_VARIANT),
                         border_radius=ft.border_radius.all(7),
                         padding=ft.padding.all(10),
                         width=initial_width,
@@ -198,27 +225,35 @@ def main(page: ft.Page):
                     )
                     for i, sheet in enumerate(sheetnames)
                 ]
-                
+
+                print(f'sheetnames:  {sheetnames} / {columns_sheet}')
+
                 radio_group = ft.Column(
                     controls=[
-                        dropdown_and_number_input_row,
-                        number_input,
+                        ft.Row(
+                            controls=[
+                                dropdown_and_number_input_row,
+                                number_input,
+                            ],
+                            wrap=True,
+                            width=initial_width,
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        ),
                         *radio_containers,
                     ],
                     spacing=10,
                     width=initial_width,
                     expand=True,
                 )
-                
+
                 dlg_modal.content = radio_group
-                
                 page.overlay.append(dlg_modal)
                 dlg_modal.open = True
                 
                 file_path_text.value = f"Caminho: {file_path}"
                 file_name.value = f"Arquivo: {file_name_value}"
 
-                if data_file is None:
+                if sheetnames is None:
                     result_title.value = 'Erro:'
                     file_path_text.value = 'Erro ao processar arquivo.'
             else:
@@ -259,7 +294,6 @@ def main(page: ft.Page):
     )
     
     def get_action_message(action, column_count):
-        print(f'quantidade:          {column_count}')
         if column_count > 1:
             return "mantidas" if action == "keep" else "deletadas"
         else:
@@ -411,6 +445,8 @@ def main(page: ft.Page):
     page.add(
         title,
         home_area_route,
+        dlg_modal,
+        banner,
         EQS_area_route,
     )
 
