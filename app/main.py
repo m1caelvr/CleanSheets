@@ -1,7 +1,10 @@
 import flet as ft
-import app.controllers.file_treatment as ftm
-import app.controllers.delete_file as delf
 import openpyxl as op
+import app.controllers.delete_file as delf
+import app.controllers.file_treatment as ftm
+from app.data.json_handler import ensure_documents_json_file
+from app.utils.get_data_json import load_json_data
+from app.utils.get_path_json import get_path_json
 
 def main(page: ft.Page):
     initial_width = 550
@@ -97,8 +100,6 @@ def main(page: ft.Page):
                 line_specified = number_input.value
 
                 selected_columns = ftm.get_columns_from_sheet(selected_file, selected_sheet, selected_treatment, line_specified)
-
-                print(f'selected_columns:       {selected_columns}')
                 
                 inputs_create(selected_columns)
                 
@@ -226,8 +227,6 @@ def main(page: ft.Page):
                     for i, sheet in enumerate(sheetnames)
                 ]
 
-                print(f'sheetnames:  {sheetnames} / {columns_sheet}')
-
                 radio_group = ft.Column(
                     controls=[
                         ft.Row(
@@ -261,15 +260,15 @@ def main(page: ft.Page):
                 file_path_text.value = 'Apenas arquivos de planilha (Excel) são permitidos.'
 
             page.update()
-
-    file_picker = ft.FilePicker(on_result=on_result)
-    page.overlay.append(file_picker)
     
     file_name = ft.Text()
     result_columns = ft.Text()
     
     result_title = ft.Text(size=16)
     file_path_text = ft.Text()
+
+    file_picker = ft.FilePicker(on_result=on_result)
+    page.overlay.append(file_picker)
 
     pick_file_button = ft.ElevatedButton(
         on_click=lambda _: file_picker.pick_files(),
@@ -302,9 +301,7 @@ def main(page: ft.Page):
     def clear_page(action, selected_columns):
         action_trated = get_action_message(action, len(selected_columns))
         columns_text = 'Colunas' if len(selected_columns) > 1 else 'Coluna'
-         
-        print(f"Ação: {action}, Colunas: {selected_columns}")
-        
+                
         home_area_route.content = ft.Column(
             controls=[
                 ft.Text(f"{columns_text}: {selected_columns} {action_trated} com sucesso!", size=16, weight="bold"),
@@ -404,13 +401,68 @@ def main(page: ft.Page):
     )
 
     EQS_title_value = ft.Text(
-        value='EQS area',
+        value='Presets area',
         size=20,
     )
 
+    presets_row = ft.Row(
+        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+        width=initial_width,
+        spacing=10,
+        wrap=True,
+    )
+    edit_preset_checkbox = ft.Checkbox(
+        label='Editar preset',
+        value=False,
+    )
+
+    presets = []
+
+    def presets_inputs_create(presets_value):
+        presets.clear()
+        for i, column in enumerate(presets_value):
+            checkbox = ft.Checkbox(
+                label=f'{i+1} - {column}',
+                value=True,
+                width=220,
+                height=30,
+                on_change=lambda _: update_selected_columns()
+            )
+            checkbox_container = ft.Container(
+                content=checkbox,
+                padding=ft.padding.all(5),
+                border=ft.border.all(1, ft.colors.WHITE10),
+                border_radius=ft.border_radius.all(7),
+            )
+            presets.append(checkbox_container)
+        presets_row.controls = presets
+        page.update()
+        print('presets created')
+
+    def preset_tratment(e: ft.FilePickerResultEvent):
+        json_file_path = get_path_json()
+
+        selected_file = e.files[0]
+        file_name_value = selected_file.name
+        file_path_value = selected_file.path
+
+        preset = load_json_data(json_file_path)
+        preset_columns = preset.get('Columns', [])
+
+        presets_inputs_create(preset_columns)
+
+        print(f'arquivo to preset:\n nome: {file_name_value}\n Local: {file_path_value}\n colunas: {preset_columns}')
+
+    file_to_preset = ft.FilePicker(on_result=preset_tratment)
+    page.overlay.append(file_to_preset)
+
+    def start_preset(e):
+        ensure_documents_json_file()
+        file_to_preset.pick_files()
+
     EQS_area_route = ft.Container(
         visible=False,
-        padding=ft.margin.all(20),
+        padding=ft.Padding(top=0, bottom=0, left=20, right=20),
         width=initial_width,
         content=ft.Column(
             controls=[
@@ -421,7 +473,13 @@ def main(page: ft.Page):
                 ft.ElevatedButton(
                     width=initial_width,
                     text="Iniciar",
-                )
+                    on_click=start_preset,
+                ),
+                ft.Row(
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    controls=[edit_preset_checkbox],
+                ),
+                presets_row,
             ]
         )
     )
@@ -438,7 +496,7 @@ def main(page: ft.Page):
         selected_index=0,
         destinations= [
             ft.NavigationBarDestination(icon=ft.icons.HOME, label='Inicio'),
-            ft.NavigationBarDestination(icon=ft.icons.WORK, label='EQS area'),
+            ft.NavigationBarDestination(icon=ft.icons.WORK, label='Presets'),
         ]
     )
 
