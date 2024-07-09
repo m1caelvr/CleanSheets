@@ -92,7 +92,15 @@ def main(page: ft.Page):
 
     def handle_close(e):
         nonlocal selected_sheet, selected_file, selected_treatment, line_specified
-        
+
+        button_clicked = e.control.text
+        print(f'Testee:        {button_clicked}')
+
+        if button_clicked == 'Cancelar':
+            page.close(dlg_modal)
+
+            return
+
         if selected_sheet and selected_file:
             _, column_counts = ftm.file_treatment(selected_file)
             
@@ -105,8 +113,7 @@ def main(page: ft.Page):
                 
                 result_columns.value = f'Número de colunas: {len(selected_columns)}'
                 
-                dlg_modal.open = False
-                page.update()
+                page.close(dlg_modal)
             else:
                 print(f"Planilha '{selected_sheet}' não encontrada nos dados de contagem de colunas.")
         else:
@@ -121,20 +128,46 @@ def main(page: ft.Page):
         visible=False,
         width=width_input,
     )
+
+    dlg_modal = ft.AlertDialog(
+        modal=True,
+        title=ft.Row(
+            controls=[ft.Text("Planilhas Disponíveis", size=20)],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            wrap=True,
+        ),
+        actions=[
+            ft.Row(
+                controls=[
+                    ft.TextButton("Cancelar", on_click=handle_close),
+                    ft.TextButton("Seguir", on_click=handle_close),
+                ],
+                width=initial_width,
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            ),
+            
+        ],
+    )
             
     def toggle_number_input(i):
+        nonlocal number_input
         if i == 1:
             number_input.visible = True
+            page.update()
         else:
             number_input.visible = False
+            page.update()
         page.update()
+        print(f'i: {i} / visible: {number_input.visible}')
 
     def on_dropdown_change(e):
-        nonlocal selected_treatment, value_line
+        nonlocal selected_treatment, value_line, number_input
         selected_treatment = e.control.value
+        toggle_number_input(1 if selected_treatment == "manual" else 0)
+
         value_line = number_input.value if selected_treatment == "manual" else 1
 
-        toggle_number_input(1 if selected_treatment == "manual" else 0)
+        page.update()
 
     dropdown_and_number_input_row = ft.Dropdown(
         label="Selecionar primeira linha",
@@ -152,25 +185,6 @@ def main(page: ft.Page):
         width=width_input,
         text_size=14,
         on_change=on_dropdown_change,
-    )
-
-    dlg_modal = ft.AlertDialog(
-        modal=True,
-        title=ft.Row(
-            controls=[ft.Text("Planilhas Disponíveis", size=20)],
-            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-            wrap=True,
-        ),
-        actions=[
-            ft.Row(
-                controls=[
-                    ft.TextButton("Cancelar", on_click=lambda _: page.close(dlg_modal)),
-                    ft.TextButton("Seguir", on_click=handle_close),
-                ],
-                width=initial_width,
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-            )
-        ],
     )
     
     def on_result(e: ft.FilePickerResultEvent):
@@ -245,9 +259,10 @@ def main(page: ft.Page):
                     expand=True,
                 )
 
+                nonlocal dlg_modal
+
                 dlg_modal.content = radio_group
-                page.overlay.append(dlg_modal)
-                dlg_modal.open = True
+                page.open(dlg_modal)
                 
                 file_path_text.value = f"Caminho: {file_path}"
                 file_name.value = f"Arquivo: {file_name_value}"
@@ -405,15 +420,32 @@ def main(page: ft.Page):
         size=20,
     )
 
+    edit_preset = ft.Container(
+        border=ft.border.all(1, ft.colors.OUTLINE_VARIANT),
+        border_radius=ft.border_radius.all(10),
+        padding=ft.padding.all(12),
+        content=ft.Row(
+            alignment=ft.MainAxisAlignment.CENTER,
+            controls=[
+                ft.Icon(ft.icons.ADD, size=20),
+                ft.Text('Adicionar coluna')
+            ]
+        )
+    )
+
     presets_row = ft.Row(
         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
         width=initial_width,
         spacing=10,
         wrap=True,
     )
-    edit_preset_checkbox = ft.Checkbox(
-        label='Editar preset',
-        value=False,
+
+    presets_column = ft.Column(
+        visible=False,
+        controls=[
+            edit_preset,
+            presets_row,
+        ]
     )
 
     presets = []
@@ -421,12 +453,16 @@ def main(page: ft.Page):
     def presets_inputs_create(presets_value):
         presets.clear()
         for i, column in enumerate(presets_value):
-            checkbox = ft.Checkbox(
-                label=f'{i+1} - {column}',
-                value=True,
+            checkbox = ft.Row(
+                controls=[
+                    ft.Text(f'{i+1} - {column}'),
+                    ft.Icon(ft.icons.DELETE_FOREVER, color=ft.colors.RED, size=20),
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 width=220,
                 height=30,
-                on_change=lambda _: update_selected_columns()
+                # label=f'{i+1} - {column}',
+                # on_change=lambda _: update_selected_columns()
             )
             checkbox_container = ft.Container(
                 content=checkbox,
@@ -438,20 +474,13 @@ def main(page: ft.Page):
         presets_row.controls = presets
         page.update()
         print('presets created')
-
+    
     def preset_tratment(e: ft.FilePickerResultEvent):
-        json_file_path = get_path_json()
-
         selected_file = e.files[0]
         file_name_value = selected_file.name
         file_path_value = selected_file.path
 
-        preset = load_json_data(json_file_path)
-        preset_columns = preset.get('Columns', [])
-
-        presets_inputs_create(preset_columns)
-
-        print(f'arquivo to preset:\n nome: {file_name_value}\n Local: {file_path_value}\n colunas: {preset_columns}')
+        print(f'arquivo to preset:\n nome: {file_name_value}\n Local: {file_path_value}')
 
     file_to_preset = ft.FilePicker(on_result=preset_tratment)
     page.overlay.append(file_to_preset)
@@ -459,8 +488,21 @@ def main(page: ft.Page):
     def start_preset(e):
         ensure_documents_json_file()
         file_to_preset.pick_files()
+    
+    def presets_zone(e):
+        nonlocal presets_column
 
-    EQS_area_route = ft.Container(
+        if e.control.value == True:
+            json_file_path = get_path_json()
+            preset = load_json_data(json_file_path)
+            preset_columns = preset.get('Columns', [])
+
+            presets_inputs_create(preset_columns)
+
+        presets_column.visible = e.control.value
+        page.update()
+
+    presets_area = ft.Container(
         visible=False,
         padding=ft.Padding(top=0, bottom=0, left=20, right=20),
         width=initial_width,
@@ -470,16 +512,34 @@ def main(page: ft.Page):
                     alignment=ft.MainAxisAlignment.CENTER,
                     controls=[EQS_title_value]
                 ),
-                ft.ElevatedButton(
-                    width=initial_width,
-                    text="Iniciar",
-                    on_click=start_preset,
-                ),
                 ft.Row(
-                    alignment=ft.MainAxisAlignment.CENTER,
-                    controls=[edit_preset_checkbox],
+                    controls=[
+                        ft.Container(
+                            content=ft.ElevatedButton(
+                                text="Iniciar",
+                                on_click=start_preset,
+                            ),
+                            expand=1,
+                        ),
+                        ft.Container(
+                            content=ft.Row(
+                                controls=[
+                                    ft.Checkbox(
+                                        label='Editar preset',
+                                        value=False,
+                                        on_change=presets_zone,
+                                    )
+                                ],
+                                alignment=ft.MainAxisAlignment.CENTER,
+                            ),
+                            border=ft.border.all(1, ft.colors.OUTLINE_VARIANT),
+                            border_radius=ft.border_radius.all(50),
+                            expand=1,
+                        ),
+                    ],
+                    spacing=10,
                 ),
-                presets_row,
+                presets_column,
             ]
         )
     )
@@ -487,7 +547,7 @@ def main(page: ft.Page):
     def changed_tab(e):
         my_index = e.control.selected_index
         home_area_route.visible = True if my_index == 0 else False
-        EQS_area_route.visible = True if my_index == 1 else False
+        presets_area.visible = True if my_index == 1 else False
         page.update()
     
     page.navigation_bar = ft.NavigationBar(
@@ -503,9 +563,8 @@ def main(page: ft.Page):
     page.add(
         title,
         home_area_route,
-        dlg_modal,
         banner,
-        EQS_area_route,
+        presets_area,
     )
 
     page.update()
