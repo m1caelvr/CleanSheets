@@ -42,7 +42,6 @@ def main(page: ft.Page):
     selected_sheet = None
     selected_file = None
     selected_treatment = "automatic"
-    selected_columns_quantity = 0
     line_specified = 1
     value_line = 0
 
@@ -62,14 +61,14 @@ def main(page: ft.Page):
             checkbox = ft.Checkbox(
                 label=f'{i+1} - {column_name}',
                 value=False,
-                width=130,
+                width=210,
                 height=30,
                 on_change=lambda _: update_selected_columns()
             )
             checkbox_container = ft.Container(
                 content=checkbox,
                 padding=ft.padding.all(5),
-                border=ft.border.all(1, ft.colors.WHITE10),
+                border=ft.border.all(1, ft.colors.OUTLINE_VARIANT),
                 border_radius=ft.border_radius.all(7),
             )
             checkboxes.append(checkbox_container)
@@ -94,11 +93,16 @@ def main(page: ft.Page):
         nonlocal selected_sheet, selected_file, selected_treatment, line_specified
 
         button_clicked = e.control.text
-        print(f'Testee:        {button_clicked}')
 
         if button_clicked == 'Cancelar':
             page.close(dlg_modal)
 
+            return
+        
+        if not number_input.value:
+            number_input.error_text = '*'
+            page.update()
+                
             return
 
         if selected_sheet and selected_file:
@@ -125,8 +129,9 @@ def main(page: ft.Page):
     number_input = ft.TextField(
         keyboard_type=ft.KeyboardType.NUMBER,
         label="Exemplo: '1' ",
-        visible=False,
         width=width_input,
+        border_color=ft.colors.OUTLINE_VARIANT,
+        visible=False,
     )
 
     dlg_modal = ft.AlertDialog(
@@ -183,6 +188,7 @@ def main(page: ft.Page):
         ],
         value="automatic",
         width=width_input,
+        border_color=ft.colors.OUTLINE_VARIANT,
         text_size=14,
         on_change=on_dropdown_change,
     )
@@ -251,6 +257,7 @@ def main(page: ft.Page):
                             wrap=True,
                             width=initial_width,
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                            vertical_alignment=ft.CrossAxisAlignment.START,
                         ),
                         *radio_containers,
                     ],
@@ -414,6 +421,60 @@ def main(page: ft.Page):
             ],
         ),
     )
+    
+    def column_to_storage(e):
+        nonlocal column_to_storage_input
+        button_clicked = e.control.text
+
+        if button_clicked == 'Cancelar':
+            page.close(add_column_modal)
+
+            return
+        else:
+            if not column_to_storage_input.value:
+                
+                column_to_storage_input.error_text = 'Digite o nome da coluna'
+                page.update()
+                
+                return
+            else:
+                column_to_storage_input.error_text = None
+                page.update()
+                # tirar o erro text
+                
+            print(f'Digited: {column_to_storage_input.value}')
+    
+    column_to_storage_input = ft.TextField(
+        hint_text="Digite o nome da coluna",
+        border_color=ft.colors.OUTLINE_VARIANT,
+    )
+    
+    add_column_modal = ft.AlertDialog(
+        modal=True,
+        title=ft.Row(
+            controls=[
+                ft.Text("Coluna para armazenar", size=20),
+                column_to_storage_input,
+            ],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            wrap=True,
+        ),
+        actions=[
+            ft.Row(
+                controls=[
+                    ft.TextButton("Cancelar", on_click=column_to_storage),
+                    ft.TextButton("Adicionar", on_click=column_to_storage),
+                ],
+                width=initial_width,
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            ),
+        ],
+    )
+    
+    def open_modal(e):
+        page.open(add_column_modal)
+        column_to_storage_input.value = ''
+        page.update()
 
     EQS_title_value = ft.Text(
         value='Presets area',
@@ -424,6 +485,7 @@ def main(page: ft.Page):
         border=ft.border.all(1, ft.colors.OUTLINE_VARIANT),
         border_radius=ft.border_radius.all(10),
         padding=ft.padding.all(12),
+        on_click=open_modal,
         content=ft.Row(
             alignment=ft.MainAxisAlignment.CENTER,
             controls=[
@@ -453,27 +515,42 @@ def main(page: ft.Page):
     def presets_inputs_create(presets_value):
         presets.clear()
         for i, column in enumerate(presets_value):
+            index = i+1
             checkbox = ft.Row(
                 controls=[
-                    ft.Text(f'{i+1} - {column}'),
-                    ft.Icon(ft.icons.DELETE_FOREVER, color=ft.colors.RED, size=20),
+                    ft.Text(
+                        value=f'{index} - {column}',
+                        width=176,
+                        no_wrap=True
+                    ),
+                    ft.IconButton(
+                        tooltip=f"Deletar coluna {index}",
+                        icon=ft.icons.DELETE_FOREVER,
+                        icon_color=ft.colors.RED,
+                        icon_size=20,
+                        width=30,
+                        data=index,
+                        style=ft.ButtonStyle(
+                            padding=ft.padding.all(0),
+                        ),
+                    ),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                width=220,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                width=210,
                 height=30,
-                # label=f'{i+1} - {column}',
-                # on_change=lambda _: update_selected_columns()
             )
             checkbox_container = ft.Container(
                 content=checkbox,
-                padding=ft.padding.all(5),
+                padding=ft.padding.all(8),
                 border=ft.border.all(1, ft.colors.WHITE10),
                 border_radius=ft.border_radius.all(7),
+                data=index,
             )
             presets.append(checkbox_container)
         presets_row.controls = presets
         page.update()
-        print('presets created')
+        # print('presets created')
     
     def preset_tratment(e: ft.FilePickerResultEvent):
         selected_file = e.files[0]
@@ -504,7 +581,7 @@ def main(page: ft.Page):
 
     presets_area = ft.Container(
         visible=False,
-        padding=ft.Padding(top=0, bottom=0, left=20, right=20),
+        padding=ft.Padding(top=10, bottom=0, left=20, right=20),
         width=initial_width,
         content=ft.Column(
             controls=[
