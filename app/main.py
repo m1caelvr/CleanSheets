@@ -1,10 +1,12 @@
 import flet as ft
 import openpyxl as op
-import app.controllers.delete_file as delf
 import app.controllers.file_treatment as ftm
+from app.controllers.delete_file import delete_columns
 from app.data.json_handler import ensure_documents_json_file
 from app.utils.get_data_json import load_json_data
 from app.utils.get_path_json import get_path_json
+from app.utils.add_column_to_json import add_column_to_json
+from app.utils.remove_column_from_json import remove_column_from_json
 
 def main(page: ft.Page):
     initial_width = 550
@@ -94,16 +96,19 @@ def main(page: ft.Page):
 
         button_clicked = e.control.text
 
+
         if button_clicked == 'Cancelar':
             page.close(dlg_modal)
 
             return
         
-        if not number_input.value:
+        if not number_input.value and selected_treatment == "manual":
             number_input.error_text = '*'
             page.update()
                 
             return
+
+        print(button_clicked)
 
         if selected_sheet and selected_file:
             _, column_counts = ftm.file_treatment(selected_file)
@@ -118,6 +123,7 @@ def main(page: ft.Page):
                 result_columns.value = f'Número de colunas: {len(selected_columns)}'
                 
                 page.close(dlg_modal)
+                print('teste')
             else:
                 print(f"Planilha '{selected_sheet}' não encontrada nos dados de contagem de colunas.")
         else:
@@ -247,7 +253,7 @@ def main(page: ft.Page):
                     for i, sheet in enumerate(sheetnames)
                 ]
 
-                radio_group = ft.Column(
+                radio_group = ft.Row(
                     controls=[
                         ft.Row(
                             controls=[
@@ -263,7 +269,7 @@ def main(page: ft.Page):
                     ],
                     spacing=10,
                     width=initial_width,
-                    expand=True,
+                    wrap=True,
                 )
 
                 nonlocal dlg_modal
@@ -337,7 +343,7 @@ def main(page: ft.Page):
         
         page.update()
 
-    def delete_columns():
+    def columns_to_delete():
         selected_columns = [cb.content.label.split(' - ')[0] for cb in checkboxes if cb.content.value]
         selected_columns = list(map(int, selected_columns))
         if selected_columns:
@@ -346,13 +352,13 @@ def main(page: ft.Page):
             sheet_name = selected_sheet
             
             if action == "delete":
-                delf.delete_columns(file_path, sheet_name, selected_columns)
+                delete_columns(file_path, sheet_name, selected_columns)
             else:
                 workbook = op.load_workbook(filename=file_path)
                 sheet = workbook[sheet_name]
                 all_columns = list(range(1, sheet.max_column + 1))
                 columns_to_keep = [col for col in all_columns if col not in selected_columns]
-                delf.delete_columns(file_path, sheet_name, columns_to_keep)
+                delete_columns(file_path, sheet_name, columns_to_keep)
                 workbook.close()
 
             clear_page(action, selected_columns)
@@ -360,7 +366,7 @@ def main(page: ft.Page):
             print("Nenhuma coluna selecionada")
 
     delete_button = ft.ElevatedButton(
-        on_click=lambda _: delete_columns(),
+        on_click=lambda _: columns_to_delete(),
         text="Deletar colunas",
         disabled=True,
     )
@@ -424,6 +430,8 @@ def main(page: ft.Page):
     
     def column_to_storage(e):
         nonlocal column_to_storage_input
+
+        json_file_path = get_path_json()
         button_clicked = e.control.text
 
         if button_clicked == 'Cancelar':
@@ -440,9 +448,14 @@ def main(page: ft.Page):
             else:
                 column_to_storage_input.error_text = None
                 page.update()
-                # tirar o erro text
-                
-            print(f'Digited: {column_to_storage_input.value}')
+
+            column_to_storage_value = column_to_storage_input.value
+
+            add_column_to_json(json_file_path, column_to_storage_value)
+            create_json_elements()
+            
+            page.close(add_column_modal)
+            page.update()
     
     column_to_storage_input = ft.TextField(
         hint_text="Digite o nome da coluna",
@@ -485,6 +498,7 @@ def main(page: ft.Page):
         border=ft.border.all(1, ft.colors.OUTLINE_VARIANT),
         border_radius=ft.border_radius.all(10),
         padding=ft.padding.all(12),
+        margin=ft.margin.all(0),
         on_click=open_modal,
         content=ft.Row(
             alignment=ft.MainAxisAlignment.CENTER,
@@ -510,6 +524,16 @@ def main(page: ft.Page):
         ]
     )
 
+    def delete_column(e):
+        data = e.control.data
+        column_name_to_delete = data['name']
+        json_file_path = get_path_json()
+
+        remove_column_from_json(json_file_path, column_name_to_delete)
+        create_json_elements()
+        page.update()
+        
+
     presets = []
 
     def presets_inputs_create(presets_value):
@@ -528,8 +552,9 @@ def main(page: ft.Page):
                         icon=ft.icons.DELETE_FOREVER,
                         icon_color=ft.colors.RED,
                         icon_size=20,
+                        data={"index": i, "name": column},
                         width=30,
-                        data=index,
+                        on_click=delete_column,
                         style=ft.ButtonStyle(
                             padding=ft.padding.all(0),
                         ),
@@ -546,42 +571,151 @@ def main(page: ft.Page):
                 border=ft.border.all(1, ft.colors.WHITE10),
                 border_radius=ft.border_radius.all(7),
                 data=index,
+                shadow=ft.BoxShadow(
+                    spread_radius=1,
+                    blur_radius=7,
+                    color=ft.colors.OUTLINE_VARIANT,
+                    offset=ft.Offset(0, 0),
+                    blur_style=ft.ShadowBlurStyle.OUTER,
+                ),
             )
             presets.append(checkbox_container)
         presets_row.controls = presets
         page.update()
-        # print('presets created')
     
-    def preset_tratment(e: ft.FilePickerResultEvent):
-        selected_file = e.files[0]
-        file_name_value = selected_file.name
-        file_path_value = selected_file.path
+    confirmation_mensage = ft.Text(visible=False)
+    continue_button_modal_preset = ft.TextButton("Seguir", disabled=True)
 
-        print(f'arquivo to preset:\n nome: {file_name_value}\n Local: {file_path_value}')
+    modal_preset = ft.AlertDialog(
+        modal=True,
+        title=ft.Text("Planilhas Disponíveis", size=20),
+        actions=[
+            ft.Row(
+                controls=[
+                    ft.TextButton("Cancelar", on_click=lambda _: page.close(modal_preset)),
+                    continue_button_modal_preset,
+                ],
+                width=initial_width,
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            ),
+            
+        ],
+    )
+
+    selected_sheet_to_preset = None
+
+    def preset_tratment(e: ft.FilePickerResultEvent):
+        nonlocal selected_file
+
+        json_file_path = get_path_json()
+        preset = load_json_data(json_file_path)
+        preset_columns = preset.get('Columns', [])
+        preset_columns_quantity = len(preset_columns)
+        # print(preset_columns_quantity)
+        SUPPORTED_EXTENSIONS = ['xlsx', 'xls']
+
+        if e.files:
+            selected_file = e.files[0]
+            file_name_value = selected_file.name
+            file_path_value = selected_file.path
+            ext = file_name_value.split('.')[-1].lower()
+
+            if ext in SUPPORTED_EXTENSIONS:
+                sheetnames, columns_sheet = ftm.file_treatment(selected_file)
+                
+                def on_container_click(index):
+                    page.update()
+                    
+                    nonlocal selected_sheet_to_preset
+                    selected_sheet_to_preset = sheetnames[index]
+
+                    for i, container in enumerate(radio_containers):
+                        if i == index:
+                            container.bgcolor = ft.colors.OUTLINE_VARIANT
+                        else:
+                            container.bgcolor = ft.colors.TRANSPARENT
+
+                    confirmation_mensage.visible = True
+                    confirmation_mensage.value = f'Quando clicado em "Seguir", serão removidas {preset_columns_quantity} colunas dessa planilha.'
+                    continue_button_modal_preset.disabled = False
+                        
+                    page.update()
+
+                radio_containers = [
+                    ft.Container(
+                        content=ft.Row(
+                            controls=[
+                                ft.Text(
+                                    value=f"Planilha: {sheet}",
+                                    size=14,
+                                ),
+                                ft.Text(
+                                    value=f"Colunas: {columns_sheet.get(sheet, 0)}",
+                                    size=11,
+                                )
+                            ],
+                            spacing=5,
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        ),
+                        border=ft.border.all(1, ft.colors.OUTLINE_VARIANT),
+                        border_radius=ft.border_radius.all(7),
+                        padding=ft.padding.all(10),
+                        width=initial_width,
+                        on_click=lambda _, index=i: on_container_click(index),
+                    ) for i, sheet in enumerate(sheetnames)
+                ]
+
+                radio_group = ft.Row(
+                    controls=[
+                        *radio_containers,
+                        confirmation_mensage,
+                    ],
+                    width=initial_width,
+                    spacing=10,
+                    wrap=True,
+                    alignment=ft.MainAxisAlignment.CENTER
+                )
+
+                nonlocal modal_preset
+
+                modal_preset.content = radio_group
+                page.open(modal_preset)
+                continue_button_modal_preset.disabled = True
+                confirmation_mensage.visible = False
+
+                if sheetnames is None:
+                    result_title.value = 'Erro:'
+                    file_path_text.value = 'Erro ao processar arquivo.'
+            else:
+                result_title.value = 'Erro:'
+                file_path_text.value = 'Apenas arquivos de planilha (Excel) são permitidos.'
+
+            page.update()
 
     file_to_preset = ft.FilePicker(on_result=preset_tratment)
     page.overlay.append(file_to_preset)
 
-    def start_preset(e):
-        ensure_documents_json_file()
-        file_to_preset.pick_files()
+    def create_json_elements():
+        json_file_path = get_path_json()
+        preset = load_json_data(json_file_path)
+        preset_columns = preset.get('Columns', [])
+
+        presets_inputs_create(preset_columns)
     
     def presets_zone(e):
         nonlocal presets_column
 
-        if e.control.value == True:
-            json_file_path = get_path_json()
-            preset = load_json_data(json_file_path)
-            preset_columns = preset.get('Columns', [])
+        ensure_documents_json_file()
 
-            presets_inputs_create(preset_columns)
+        if e.control.value == True:
+            create_json_elements()
 
         presets_column.visible = e.control.value
         page.update()
 
     presets_area = ft.Container(
         visible=False,
-        padding=ft.Padding(top=10, bottom=0, left=20, right=20),
+        padding=ft.Padding(top=10, bottom=20, left=20, right=20),
         width=initial_width,
         content=ft.Column(
             controls=[
@@ -594,7 +728,7 @@ def main(page: ft.Page):
                         ft.Container(
                             content=ft.ElevatedButton(
                                 text="Iniciar",
-                                on_click=start_preset,
+                                on_click=lambda _: file_to_preset.pick_files(),
                             ),
                             expand=1,
                         ),

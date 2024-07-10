@@ -12,9 +12,9 @@ def delete_columns(file_path, sheet_name, columns_to_remove):
 
     columns_to_remove.sort(reverse=True)
     
-    for col in columns_to_remove:
-        sheet.delete_cols(col)
+    # for col in columns_to_remove:
+    #     sheet.delete_cols(col)
 
-    workbook.save(filename=file_path)
+    # workbook.save(filename=file_path)
     print("Colunas deletadas com sucesso.")
     
