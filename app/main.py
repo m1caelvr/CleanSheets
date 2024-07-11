@@ -96,7 +96,6 @@ def main(page: ft.Page):
 
         button_clicked = e.control.text
 
-
         if button_clicked == 'Cancelar':
             page.close(dlg_modal)
 
@@ -123,7 +122,7 @@ def main(page: ft.Page):
                 result_columns.value = f'Número de colunas: {len(selected_columns)}'
                 
                 page.close(dlg_modal)
-                print('teste')
+                page.update()
             else:
                 print(f"Planilha '{selected_sheet}' não encontrada nos dados de contagem de colunas.")
         else:
@@ -201,6 +200,7 @@ def main(page: ft.Page):
     
     def on_result(e: ft.FilePickerResultEvent):
         selected_columns_container.visible = False
+        result_action.visible = False
 
         SUPPORTED_EXTENSIONS = ['xlsx', 'xls']
         nonlocal selected_file
@@ -272,10 +272,13 @@ def main(page: ft.Page):
                     wrap=True,
                 )
 
-                nonlocal dlg_modal
+                nonlocal dlg_modal, checkboxes
 
                 dlg_modal.content = radio_group
                 page.open(dlg_modal)
+
+                result_container.visible = True
+                checkboxes.clear()
                 
                 file_path_text.value = f"Caminho: {file_path}"
                 file_name.value = f"Arquivo: {file_name_value}"
@@ -319,6 +322,17 @@ def main(page: ft.Page):
         ),
         on_change=on_radio_change,
     )
+
+    result_action_text = ft.Row(
+        alignment=ft.MainAxisAlignment.CENTER,
+        expand=True,
+        wrap=True,
+    )
+    result_action = ft.Container(
+        alignment=ft.alignment.center,
+        content=result_action_text,
+        visible=False,
+    )
     
     def get_action_message(action, column_count):
         if column_count > 1:
@@ -330,16 +344,11 @@ def main(page: ft.Page):
         action_trated = get_action_message(action, len(selected_columns))
         columns_text = 'Colunas' if len(selected_columns) > 1 else 'Coluna'
                 
-        home_area_route.content = ft.Column(
-            controls=[
-                ft.Text(f"{columns_text}: {selected_columns} {action_trated} com sucesso!", size=16, weight="bold"),
-                ft.Text(f"Para fazer um novo upload, Reinicie o app."),
-            ],
-            width=initial_width,
-            alignment=ft.MainAxisAlignment.START,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            expand=True,
-        )
+        result_action_text.controls = [
+            ft.Text(f"{columns_text}: {selected_columns} {action_trated} com sucesso!", size=16, weight="bold"),
+        ]
+        result_action.visible = True
+        result_container.visible = False
         
         page.update()
 
@@ -424,6 +433,7 @@ def main(page: ft.Page):
                 ),
                 pick_file_button,
                 result_container,
+                result_action,
             ],
         ),
     )
@@ -509,6 +519,69 @@ def main(page: ft.Page):
         )
     )
 
+    presets_names_group = ["Elemento 1", "Elemento 2", "Elemento 3"]
+
+    def on_preset_name_click(e):
+        ...
+
+    def presets_names_create(presets_names_value):
+        presets_controls = []
+        for i, column in enumerate(presets_names_value):
+            index = i+1
+            checkbox = ft.Row(
+                controls=[
+                    ft.Text(
+                        value=f'{column}',
+                        no_wrap=True
+                    ),
+
+                    # ft.IconButton(
+                    #     tooltip=f"Editar coluna {index}",
+                    #     icon=ft.icons.EDIT,
+                    #     icon_size=20,
+                    #     data={"index": i, "name": column},
+                    #     width=30,
+                    #     # on_click=,
+                    #     style=ft.ButtonStyle(
+                    #         padding=ft.padding.all(0),
+                    #     ),
+                    # ),
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                height=30,
+            )
+            checkbox_container = ft.Container(
+                content=checkbox,
+                padding=ft.padding.all(8),
+                border=ft.border.all(1, ft.colors.OUTLINE_VARIANT),
+                border_radius=ft.border_radius.all(7),
+                data=index,
+                on_click=on_preset_name_click(index),
+            )
+            presets_controls.append(checkbox_container)
+        add_preset = ft.IconButton(
+            tooltip=f"Novo preset",
+            icon=ft.icons.ADD,
+            icon_size=20,
+            # on_click=,
+            style=ft.ButtonStyle(
+                padding=ft.padding.all(0),
+            ),
+        )
+        presets_controls.append(add_preset)
+
+        presets_names.controls = presets_controls
+        page.update()
+
+    # Criação inicial da Row
+    presets_names = ft.Row(
+        width=initial_width,
+        height=80,
+        spacing=10,
+        scroll="auto",
+    )
+
     presets_row = ft.Row(
         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
         width=initial_width,
@@ -519,6 +592,7 @@ def main(page: ft.Page):
     presets_column = ft.Column(
         visible=False,
         controls=[
+            presets_names,
             edit_preset,
             presets_row,
         ]
@@ -611,7 +685,7 @@ def main(page: ft.Page):
         preset = load_json_data(json_file_path)
         preset_columns = preset.get('Columns', [])
         preset_columns_quantity = len(preset_columns)
-        # print(preset_columns_quantity)
+        
         SUPPORTED_EXTENSIONS = ['xlsx', 'xls']
 
         if e.files:
@@ -677,7 +751,7 @@ def main(page: ft.Page):
                 )
 
                 nonlocal modal_preset
-
+                
                 modal_preset.content = radio_group
                 page.open(modal_preset)
                 continue_button_modal_preset.disabled = True
@@ -698,7 +772,13 @@ def main(page: ft.Page):
     def create_json_elements():
         json_file_path = get_path_json()
         preset = load_json_data(json_file_path)
-        preset_columns = preset.get('Columns', [])
+
+        preset_name = 'preset_1'
+
+        if preset_name in preset:
+            preset_columns = preset[preset_name].get('Columns', [])
+        else:
+            preset_columns = []
 
         presets_inputs_create(preset_columns)
     
@@ -708,6 +788,7 @@ def main(page: ft.Page):
         ensure_documents_json_file()
 
         if e.control.value == True:
+            presets_names_create(presets_names_group)
             create_json_elements()
 
         presets_column.visible = e.control.value
