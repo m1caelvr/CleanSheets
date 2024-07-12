@@ -1,12 +1,15 @@
 import flet as ft
 import openpyxl as op
 import app.controllers.file_treatment as ftm
+from functools import partial
 from app.controllers.delete_file import delete_columns
 from app.data.json_handler import ensure_documents_json_file
 from app.utils.get_data_json import load_json_data
 from app.utils.get_path_json import get_path_json
 from app.utils.add_column_to_json import add_column_to_json
 from app.utils.remove_column_from_json import remove_column_from_json
+from app.utils.get_presets_names import get_presets_names
+from app.utils.add_new_preset import add_new_preset
 
 def main(page: ft.Page):
     initial_width = 550
@@ -461,8 +464,8 @@ def main(page: ft.Page):
 
             column_to_storage_value = column_to_storage_input.value
 
-            add_column_to_json(json_file_path, column_to_storage_value)
-            create_json_elements()
+            add_column_to_json(json_file_path, current_preset_column, column_to_storage_value)
+            create_json_elements(False, current_preset_column)
             
             page.close(add_column_modal)
             page.update()
@@ -518,34 +521,143 @@ def main(page: ft.Page):
             ]
         )
     )
-
-    presets_names_group = ["Elemento 1", "Elemento 2", "Elemento 3"]
-
-    def on_preset_name_click(e):
+    
+    def edit_preset_modal_action(e):
+        initial_value = current_preset
+        value_input # valor atual do novo nome da coluna
         ...
+        
+    def handle_preset_edit_change(e):
+        global value_input
+        initial_value = current_preset
+        value_input = e.control.value
+
+        if value_input != initial_value and value_input != "":
+            alter_preset_name_button.disabled = False
+            alter_preset_name_button.opacity = 1.0
+        else:
+            alter_preset_name_button.disabled = True
+            alter_preset_name_button.opacity = 0.4
+
+        page.update()
+    
+    preset_to_edit = ft.TextField(
+        label="Novo nome",
+        border_color=ft.colors.OUTLINE_VARIANT,
+        on_change=handle_preset_edit_change,
+    )
+    
+    alter_preset_name_button = ft.Container(
+        content=ft.Text(
+            "Modificar",
+            color=ft.colors.OUTLINE,
+            weight=ft.FontWeight.W_500,
+        ),
+        expand=1,
+        padding=ft.padding.all(10),
+        border_radius=ft.border_radius.all(10),
+        border=ft.border.all(1, ft.colors.OUTLINE),
+        on_click=edit_preset_modal_action,
+        alignment=ft.alignment.center,
+        disabled=True,
+        opacity=0.4,
+    )
+    
+    edit_preset_modal = ft.AlertDialog(
+        modal=True,
+        title=ft.Row(
+            controls=[
+                ft.Text("Editar preset", size=20),
+                preset_to_edit,
+            ],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            wrap=True,
+        ),
+        actions=[
+            ft.Column(
+                controls=[
+                    ft.Row(
+                        controls=[
+                            ft.Container(
+                                content=ft.Text(
+                                    "Deletar",
+                                    color=ft.colors.RED_400,
+                                    weight=ft.FontWeight.W_500,
+                                ),
+                                expand=1,
+                                padding=ft.padding.all(10),
+                                border_radius=ft.border_radius.all(10),
+                                border=ft.border.all(1, ft.colors.RED_400),
+                                on_click=edit_preset_modal_action,
+                                alignment=ft.alignment.center,
+                            ),
+                            alter_preset_name_button,
+                        ],
+                        spacing=10,
+                        width=initial_width,
+                    ),
+                    ft.TextButton("Cancelar", width=initial_width, on_click=lambda _: page.close(edit_preset_modal)),
+                ],
+                width=initial_width,
+            ),
+        ],
+    )
+    
+    def open_modal_edit_preset(preset, e=None):
+        global current_preset
+        
+        current_preset = preset
+        preset_to_edit.value = preset
+        
+        page.open(edit_preset_modal)
+        page.update()
+
+    def new_preset(e):
+        add_new_preset()
+        create_presets_names()
+
+    def on_preset_name_click(index, preset, e):
+        global current_preset_column
+        current_preset_column = preset
+        
+        for i, container in enumerate(presets_controls):
+            if i == index - 1:
+                container.bgcolor = ft.colors.OUTLINE_VARIANT
+            else:
+                container.bgcolor = ft.colors.TRANSPARENT
+        
+        create_json_elements(False, preset)
+        page.update()
 
     def presets_names_create(presets_names_value):
+        global presets_controls, first_preset
         presets_controls = []
-        for i, column in enumerate(presets_names_value):
-            index = i+1
+        
+        first_preset = None
+        for key, value in presets_names_value.items():
+            if isinstance(value, dict) and "Columns" in value:
+                first_preset = key
+                break
+        
+        for i, preset in enumerate(presets_names_value):
+            index = i + 1
             checkbox = ft.Row(
                 controls=[
                     ft.Text(
-                        value=f'{column}',
+                        value=f'{preset}',
                         no_wrap=True
                     ),
-
-                    # ft.IconButton(
-                    #     tooltip=f"Editar coluna {index}",
-                    #     icon=ft.icons.EDIT,
-                    #     icon_size=20,
-                    #     data={"index": i, "name": column},
-                    #     width=30,
-                    #     # on_click=,
-                    #     style=ft.ButtonStyle(
-                    #         padding=ft.padding.all(0),
-                    #     ),
-                    # ),
+                    ft.IconButton(
+                        tooltip=f"Editar preset {index}",
+                        icon=ft.icons.EDIT,
+                        icon_size=15,
+                        data={"index": i, "name": preset},
+                        width=30,
+                        on_click=partial(open_modal_edit_preset, preset),
+                        style=ft.ButtonStyle(
+                            padding=ft.padding.all(0),
+                        ),
+                    ),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -553,29 +665,35 @@ def main(page: ft.Page):
             )
             checkbox_container = ft.Container(
                 content=checkbox,
-                padding=ft.padding.all(8),
+                padding=ft.Padding(top=5, bottom=9, left=20, right=11),
                 border=ft.border.all(1, ft.colors.OUTLINE_VARIANT),
                 border_radius=ft.border_radius.all(7),
                 data=index,
-                on_click=on_preset_name_click(index),
+                on_click=partial(on_preset_name_click, index, preset),
             )
             presets_controls.append(checkbox_container)
+
         add_preset = ft.IconButton(
             tooltip=f"Novo preset",
             icon=ft.icons.ADD,
             icon_size=20,
-            # on_click=,
+            on_click=new_preset,
             style=ft.ButtonStyle(
                 padding=ft.padding.all(0),
             ),
         )
         presets_controls.append(add_preset)
 
-        presets_names.controls = presets_controls
+        presets_names_area.controls = presets_controls
+        
+        if first_preset:
+            on_preset_name_click(1, first_preset, None)
+        else:
+            print("Nenhum preset válido encontrado.")
+            
         page.update()
 
-    # Criação inicial da Row
-    presets_names = ft.Row(
+    presets_names_area = ft.Row(
         width=initial_width,
         height=80,
         spacing=10,
@@ -592,7 +710,7 @@ def main(page: ft.Page):
     presets_column = ft.Column(
         visible=False,
         controls=[
-            presets_names,
+            presets_names_area,
             edit_preset,
             presets_row,
         ]
@@ -603,11 +721,10 @@ def main(page: ft.Page):
         column_name_to_delete = data['name']
         json_file_path = get_path_json()
 
-        remove_column_from_json(json_file_path, column_name_to_delete)
-        create_json_elements()
+        remove_column_from_json(json_file_path, current_preset_column, column_name_to_delete)
+        create_json_elements(False, current_preset_column)
         page.update()
         
-
     presets = []
 
     def presets_inputs_create(presets_value):
@@ -647,8 +764,8 @@ def main(page: ft.Page):
                 data=index,
                 shadow=ft.BoxShadow(
                     spread_radius=1,
-                    blur_radius=7,
-                    color=ft.colors.OUTLINE_VARIANT,
+                    blur_radius=10,
+                    color='#050505',
                     offset=ft.Offset(0, 0),
                     blur_style=ft.ShadowBlurStyle.OUTER,
                 ),
@@ -698,8 +815,6 @@ def main(page: ft.Page):
                 sheetnames, columns_sheet = ftm.file_treatment(selected_file)
                 
                 def on_container_click(index):
-                    page.update()
-                    
                     nonlocal selected_sheet_to_preset
                     selected_sheet_to_preset = sheetnames[index]
 
@@ -769,11 +884,13 @@ def main(page: ft.Page):
     file_to_preset = ft.FilePicker(on_result=preset_tratment)
     page.overlay.append(file_to_preset)
 
-    def create_json_elements():
+    def create_json_elements(first, preset_name):
         json_file_path = get_path_json()
         preset = load_json_data(json_file_path)
-
-        preset_name = 'preset_1'
+        
+        if first == True:
+            preset_name = first_preset
+            print(f'first:  preset_name')
 
         if preset_name in preset:
             preset_columns = preset[preset_name].get('Columns', [])
@@ -781,15 +898,19 @@ def main(page: ft.Page):
             preset_columns = []
 
         presets_inputs_create(preset_columns)
+        
+    def create_presets_names():
+        presets_names = get_presets_names()
+        presets_names_create(presets_names)
     
     def presets_zone(e):
         nonlocal presets_column
-
+        
         ensure_documents_json_file()
 
         if e.control.value == True:
-            presets_names_create(presets_names_group)
-            create_json_elements()
+            create_presets_names()
+            create_json_elements(True, None)
 
         presets_column.visible = e.control.value
         page.update()

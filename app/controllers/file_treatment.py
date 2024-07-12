@@ -32,7 +32,6 @@ def get_columns_from_sheet(file, sheet_name, treatment, specified):
 
         wb.close()
 
-        # print(column_names)
         return column_names
     except Exception as e:
         print(f"Erro ao processar arquivo: {e}")
