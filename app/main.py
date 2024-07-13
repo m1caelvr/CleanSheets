@@ -2,14 +2,15 @@ import flet as ft
 import openpyxl as op
 import app.controllers.file_treatment as ftm
 from functools import partial
+from app.utils.get_path_json import get_path_json
 from app.controllers.delete_file import delete_columns
 from app.data.json_handler import ensure_documents_json_file
 from app.utils.get_data_json import load_json_data
-from app.utils.get_path_json import get_path_json
 from app.utils.add_column_to_json import add_column_to_json
 from app.utils.remove_column_from_json import remove_column_from_json
 from app.utils.get_presets_names import get_presets_names
 from app.utils.add_new_preset import add_new_preset
+from app.utils.update_preset_in_json import update_preset_in_json
 
 def main(page: ft.Page):
     initial_width = 550
@@ -523,9 +524,21 @@ def main(page: ft.Page):
     )
     
     def edit_preset_modal_action(e):
+        global current_preset
+
         initial_value = current_preset
-        value_input # valor atual do novo nome da coluna
-        ...
+        new_value = preset_to_edit.value
+
+        if new_value != initial_value and new_value != "":
+            print(f"Editando preset '{initial_value}' para '{new_value}'")
+            update_preset_in_json(initial_value, new_value)
+            
+            page.close(edit_preset_modal)
+            create_presets_names()
+            page.update()
+
+        else:
+            print("O novo nome da coluna não pode ser vazio ou igual ao nome inicial.")
         
     def handle_preset_edit_change(e):
         global value_input
@@ -890,7 +903,6 @@ def main(page: ft.Page):
         
         if first == True:
             preset_name = first_preset
-            print(f'first:  preset_name')
 
         if preset_name in preset:
             preset_columns = preset[preset_name].get('Columns', [])
