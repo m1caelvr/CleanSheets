@@ -1,6 +1,9 @@
 import json
+from app.utils.get_path_json import get_path_json
 
-def remove_column_from_json(file_path, preset_name, column_to_remove):
+def remove_column_from_json(preset_name, column_to_remove):
+    file_path = get_path_json()
+    
     try:
         with open(file_path, 'r') as json_file:
             data = json.load(json_file)

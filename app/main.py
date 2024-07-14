@@ -2,15 +2,15 @@ import flet as ft
 import openpyxl as op
 import app.controllers.file_treatment as ftm
 from functools import partial
-from app.utils.get_path_json import get_path_json
-from app.controllers.delete_file import delete_columns
-from app.data.json_handler import ensure_documents_json_file
 from app.utils.get_data_json import load_json_data
-from app.utils.add_column_to_json import add_column_to_json
-from app.utils.remove_column_from_json import remove_column_from_json
-from app.utils.get_presets_names import get_presets_names
 from app.utils.add_new_preset import add_new_preset
-from app.utils.update_preset_in_json import update_preset_in_json
+from app.controllers.delete_columns_from_file import delete_columns
+from app.utils.get_presets_names import get_presets_names
+from app.utils.add_column_to_json import add_column_to_json
+from app.data.json_handler import ensure_documents_json_file
+from app.utils.remove_preset_from_json import remove_preset_from_json
+from app.utils.remove_column_from_json import remove_column_from_json
+from app.utils.update_preset_in_json import update_preset_exist_in_json, update_preset_in_json 
 
 def main(page: ft.Page):
     initial_width = 550
@@ -445,7 +445,6 @@ def main(page: ft.Page):
     def column_to_storage(e):
         nonlocal column_to_storage_input
 
-        json_file_path = get_path_json()
         button_clicked = e.control.text
 
         if button_clicked == 'Cancelar':
@@ -465,7 +464,7 @@ def main(page: ft.Page):
 
             column_to_storage_value = column_to_storage_input.value
 
-            add_column_to_json(json_file_path, current_preset_column, column_to_storage_value)
+            add_column_to_json(current_preset_column, column_to_storage_value)
             create_json_elements(False, current_preset_column)
             
             page.close(add_column_modal)
@@ -523,15 +522,97 @@ def main(page: ft.Page):
         )
     )
     
-    def edit_preset_modal_action(e):
-        global current_preset
-
+    def disabled_delete_preset(e):
+        value_agree_button = agree_box.value
+            
+        delet_preset_button_agree.disabled = False if value_agree_button == True else True
+        delet_preset_button_agree.opacity = 1 if value_agree_button == True else 0.5
+        
+        page.update()
+        
+    def delete_preset(e):
+        initial_value = current_preset
+        
+        remove_preset_from_json(initial_value)
+        
+        page.close(edit_preset_modal)
+        create_presets_names()
+        page.update()
+    
+    agree_box = ft.Checkbox(
+        label='Li e concordo.',
+        value=True,
+        on_change=disabled_delete_preset,
+    )
+    
+    delet_preset_button_agree = ft.Container(
+        content=ft.Text(
+            "Deletar",
+            color=ft.colors.RED_400,
+            weight=ft.FontWeight.W_500,
+        ),
+        key='delete',
+        expand=1,
+        padding=ft.padding.all(10),
+        border_radius=ft.border_radius.all(10),
+        border=ft.border.all(1, ft.colors.RED_400),
+        on_click=delete_preset,
+        alignment=ft.alignment.center,
+    )
+    
+    confirm_action = [
+        ft.Column(
+            controls=[
+                ft.Row(
+                    controls=[
+                        delet_preset_button_agree
+                    ],
+                    width=initial_width,
+                ),
+                ft.TextButton("Cancelar", width=initial_width, on_click=lambda _: page.close(edit_preset_modal)),
+            ],
+            width=initial_width,
+        ),
+    ]
+    
+    def confirm_action_to_del_preset():
+        initial_value = current_preset
+        print(initial_value)
+        
+        edit_preset_modal.content = ft.Row(
+            controls=[
+                ft.Text(
+                    f'Ciente que ao clicar em deletar, estarei removendo o preset "{initial_value}" e suas colunas existentes. essa ação será irrevessível.',
+                    text_align=ft.TextAlign.CENTER,
+                    size=12,
+                ),
+                ft.Row(
+                    controls=[agree_box],
+                    alignment=ft.MainAxisAlignment.CENTER,
+                ),
+            ],
+            width=initial_width,
+            wrap=True
+        )
+        
+        edit_preset_modal.actions = confirm_action
+        disabled_delete_preset(None)
+        page.update()
+    
+    def update_preset_name():        
         initial_value = current_preset
         new_value = preset_to_edit.value
 
         if new_value != initial_value and new_value != "":
-            print(f"Editando preset '{initial_value}' para '{new_value}'")
-            update_preset_in_json(initial_value, new_value)
+            exist_preset = update_preset_exist_in_json(new_value)
+            
+            if exist_preset == True:
+                preset_to_edit.error_text = 'Esse preset já existe'
+                page.update()
+                return
+            else:
+                update_preset_in_json(initial_value, new_value)
+                preset_to_edit.error_text = None
             
             page.close(edit_preset_modal)
             create_presets_names()
@@ -539,6 +620,15 @@ def main(page: ft.Page):
 
         else:
             print("O novo nome da coluna não pode ser vazio ou igual ao nome inicial.")
+    
+    def preset_modal_action(e):
+        action = e.control.key
+        
+        if action == 'delete':
+            confirm_action_to_del_preset()
+        else:
+            update_preset_name()
+            
         
     def handle_preset_edit_change(e):
         global value_input
@@ -560,67 +650,80 @@ def main(page: ft.Page):
         on_change=handle_preset_edit_change,
     )
     
+    delet_preset_button = ft.Container(
+        content=ft.Text(
+            "Deletar",
+            color=ft.colors.RED_400,
+            weight=ft.FontWeight.W_500,
+        ),
+        key='delete',
+        expand=1,
+        padding=ft.padding.all(10),
+        border_radius=ft.border_radius.all(10),
+        border=ft.border.all(1, ft.colors.RED_400),
+        on_click=preset_modal_action,
+        alignment=ft.alignment.center,
+    )
     alter_preset_name_button = ft.Container(
         content=ft.Text(
             "Modificar",
             color=ft.colors.OUTLINE,
             weight=ft.FontWeight.W_500,
         ),
+        key='update',
         expand=1,
         padding=ft.padding.all(10),
         border_radius=ft.border_radius.all(10),
         border=ft.border.all(1, ft.colors.OUTLINE),
-        on_click=edit_preset_modal_action,
+        on_click=preset_modal_action,
         alignment=ft.alignment.center,
         disabled=True,
         opacity=0.4,
     )
     
+    delet_preset_button = [
+        ft.Column(
+            controls=[
+                ft.Row(
+                    controls=[
+                        delet_preset_button,
+                        alter_preset_name_button,
+                    ],
+                    spacing=10,
+                    width=initial_width,
+                ),
+                ft.TextButton("Cancelar", width=initial_width, on_click=lambda _: page.close(edit_preset_modal)),
+            ],
+            width=initial_width,
+        ),
+    ]
+    
     edit_preset_modal = ft.AlertDialog(
         modal=True,
         title=ft.Row(
             controls=[
-                ft.Text("Editar preset", size=20),
-                preset_to_edit,
+                ft.Text(
+                    "Editar preset",
+                    text_align=ft.TextAlign.CENTER,
+                    size=20,
+                ),
             ],
-            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-            wrap=True,
+            alignment=ft.MainAxisAlignment.CENTER,
         ),
-        actions=[
-            ft.Column(
-                controls=[
-                    ft.Row(
-                        controls=[
-                            ft.Container(
-                                content=ft.Text(
-                                    "Deletar",
-                                    color=ft.colors.RED_400,
-                                    weight=ft.FontWeight.W_500,
-                                ),
-                                expand=1,
-                                padding=ft.padding.all(10),
-                                border_radius=ft.border_radius.all(10),
-                                border=ft.border.all(1, ft.colors.RED_400),
-                                on_click=edit_preset_modal_action,
-                                alignment=ft.alignment.center,
-                            ),
-                            alter_preset_name_button,
-                        ],
-                        spacing=10,
-                        width=initial_width,
-                    ),
-                    ft.TextButton("Cancelar", width=initial_width, on_click=lambda _: page.close(edit_preset_modal)),
-                ],
-                width=initial_width,
-            ),
-        ],
+        content=preset_to_edit,
+        actions=delet_preset_button,
     )
     
     def open_modal_edit_preset(preset, e=None):
         global current_preset
         
         current_preset = preset
+        
         preset_to_edit.value = preset
+        preset_to_edit.error_text = None
+        edit_preset_modal.content = preset_to_edit
+        edit_preset_modal.actions = delet_preset_button
+        
         
         page.open(edit_preset_modal)
         page.update()
@@ -732,9 +835,8 @@ def main(page: ft.Page):
     def delete_column(e):
         data = e.control.data
         column_name_to_delete = data['name']
-        json_file_path = get_path_json()
 
-        remove_column_from_json(json_file_path, current_preset_column, column_name_to_delete)
+        remove_column_from_json(current_preset_column, column_name_to_delete)
         create_json_elements(False, current_preset_column)
         page.update()
         
@@ -811,8 +913,7 @@ def main(page: ft.Page):
     def preset_tratment(e: ft.FilePickerResultEvent):
         nonlocal selected_file
 
-        json_file_path = get_path_json()
-        preset = load_json_data(json_file_path)
+        preset = load_json_data()
         preset_columns = preset.get('Columns', [])
         preset_columns_quantity = len(preset_columns)
         
@@ -898,8 +999,7 @@ def main(page: ft.Page):
     page.overlay.append(file_to_preset)
 
     def create_json_elements(first, preset_name):
-        json_file_path = get_path_json()
-        preset = load_json_data(json_file_path)
+        preset = load_json_data()
         
         if first == True:
             preset_name = first_preset

@@ -2,14 +2,17 @@ import json
 from collections import OrderedDict
 from app.utils.get_path_json import get_path_json
 
+def update_preset_exist_in_json(new_name):
+    json_file_path = get_path_json()
+    with open(json_file_path, 'r') as file:
+        data = json.load(file, object_pairs_hook=OrderedDict)
+
+    return True if new_name in data else False
+
 def update_preset_in_json(old_name, new_name):
     json_file_path = get_path_json()
     with open(json_file_path, 'r') as file:
         data = json.load(file, object_pairs_hook=OrderedDict)
-        
-    if new_name in data:
-        print(f"O novo nome '{new_name}' já existe no JSON.")
-        return
     
     if old_name in data:
         new_data = OrderedDict()

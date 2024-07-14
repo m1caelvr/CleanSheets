@@ -1,6 +1,9 @@
 import json
+from app.utils.get_path_json import get_path_json
 
-def add_column_to_json(file_path, preset_name, new_column):
+def add_column_to_json(preset_name, new_column):
+    file_path = get_path_json()
+    
     try:
         with open(file_path, 'r') as json_file:
             data = json.load(json_file)
