@@ -111,8 +111,6 @@ def main(page: ft.Page):
                 
             return
 
-        print(button_clicked)
-
         if selected_sheet and selected_file:
             _, column_counts = ftm.file_treatment(selected_file)
             
