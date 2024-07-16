@@ -20,22 +20,19 @@ def file_treatment(file):
 
 def get_columns_from_sheet(file, sheet_name, treatment, specified):
     try:
-        specified = int(specified)
-
         if treatment == 'automatic':
             xls = pd.ExcelFile(file.path)
-            df = xls.parse(sheet_name, engine='openpyxl')
+            df = xls.parse(sheet_name, engine='openpyxl', header=None)
 
             column_names = df.head(10).apply(lambda col: col.dropna().iloc[0], axis=0).tolist()
-
+            
         else:
+            specified = int(specified)
             df = pd.read_excel(file.path, sheet_name=sheet_name, header=None, nrows=specified + 10)
 
-            # Obter os nomes das colunas especificadas a partir da linha specified - 1 (considerando 0-index do Python)
             column_names = df.iloc[specified - 1].dropna().tolist()
 
-        print(f'column_names: {column_names}')
-        return column_names if column_names else []  # Retorna uma lista vazia se column_names for None
+        return column_names if column_names else []
 
     except Exception as e:
         print(f"Erro ao processar arquivo: {e}")

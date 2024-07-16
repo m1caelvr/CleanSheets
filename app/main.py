@@ -4,7 +4,7 @@ import app.controllers.file_treatment as ftm
 from functools import partial
 from app.utils.get_data_json import load_json_data
 from app.utils.add_new_preset import add_new_preset
-from app.controllers.delete_columns_from_file import delete_columns
+from app.controllers.delete_columns import delete_columns
 from app.utils.get_presets_names import get_presets_names
 from app.utils.add_column_to_json import add_column_to_json
 from app.data.json_handler import ensure_documents_json_file
@@ -116,6 +116,7 @@ def main(page: ft.Page):
             
             if selected_sheet in column_counts:
                 line_specified = number_input.value
+                print(line_specified)
 
                 selected_columns = ftm.get_columns_from_sheet(selected_file, selected_sheet, selected_treatment, line_specified)
                 
@@ -887,7 +888,7 @@ def main(page: ft.Page):
         presets_row.controls = presets
         page.update()
     
-    confirmation_mensage = ft.Text(visible=False)
+    confirmation_mensage = ft.Text(visible=False, text_align=ft.TextAlign.CENTER)
     continue_button_modal_preset = ft.TextButton("Seguir", disabled=True)
 
     modal_preset = ft.AlertDialog(
@@ -905,6 +906,58 @@ def main(page: ft.Page):
             
         ],
     )
+    
+    def selected_preset(e):
+        selected_preset_value = e.control.value
+        preset = load_json_data()
+
+        if selected_preset_value in preset:
+            preset_columns = preset[selected_preset_value].get('Columns', [])
+        
+        preset_columns_quantity = len(preset_columns)
+        
+        confirmation_mensage.visible = True 
+        confirmation_mensage.value = f'Quando clicado em "Seguir", serão removidas {preset_columns_quantity} colunas dessa planilha.'
+        continue_button_modal_preset.disabled = False
+        
+        page.update()
+    
+    preset_dropdown_available = ft.Dropdown(
+        label="Selecione o preset",
+        border_color=ft.colors.OUTLINE_VARIANT,
+        text_size=14,
+        visible=False,
+        on_change=selected_preset,
+    )
+    
+    preset_contain = ft.Container(
+        content=preset_dropdown_available,
+        margin=ft.Margin(top=10, bottom=15, left=0, right=0),
+        shadow=ft.BoxShadow(
+            spread_radius=1,
+            blur_radius=10,
+            color='#050505',
+            offset=ft.Offset(0, 1),
+            blur_style=ft.ShadowBlurStyle.OUTER,
+        ),
+    )
+
+    def select_preset():
+        global presets_available
+        
+        presets_available = []
+        presets_value = get_presets_names()
+        
+        for i, preset in enumerate(presets_value):
+            preset_container = ft.dropdown.Option(
+                text=preset,
+                key=preset,
+            )
+            presets_available.append(preset_container)
+            
+        preset_dropdown_available.options = presets_available
+        preset_dropdown_available.visible = True
+
 
     selected_sheet_to_preset = None
 
@@ -913,9 +966,11 @@ def main(page: ft.Page):
 
         preset = load_json_data()
         preset_columns = preset.get('Columns', [])
-        preset_columns_quantity = len(preset_columns)
         
         SUPPORTED_EXTENSIONS = ['xlsx', 'xls']
+        
+        preset_dropdown_available.value = ''
+        preset_dropdown_available.visible = False
 
         if e.files:
             selected_file = e.files[0]
@@ -936,10 +991,7 @@ def main(page: ft.Page):
                         else:
                             container.bgcolor = ft.colors.TRANSPARENT
 
-                    confirmation_mensage.visible = True
-                    confirmation_mensage.value = f'Quando clicado em "Seguir", serão removidas {preset_columns_quantity} colunas dessa planilha.'
-                    continue_button_modal_preset.disabled = False
-                        
+                    select_preset()
                     page.update()
 
                 radio_containers = [
@@ -969,6 +1021,7 @@ def main(page: ft.Page):
                 radio_group = ft.Row(
                     controls=[
                         *radio_containers,
+                        preset_contain,
                         confirmation_mensage,
                     ],
                     width=initial_width,

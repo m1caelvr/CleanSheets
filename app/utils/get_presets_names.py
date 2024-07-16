@@ -12,5 +12,5 @@ def load_json_data(file_path):
 def get_presets_names():
     file_path = get_path_json()
     data = load_json_data(file_path)
-    first_level_elements = {key: value for key, value in data.items()}
-    return first_level_elements
+    presets_names = {key: value for key, value in data.items()}
+    return presets_names
