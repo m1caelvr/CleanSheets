@@ -34,10 +34,10 @@ def download_and_apply_update(remote_version):
     local_version_file = "version.txt"
 
     try:
-        # response = requests.get(update_url, stream=True)
-        # with open(temp_filename, 'wb') as f:
-        #     for chunk in response.iter_content(chunk_size=8192):
-        #         f.write(chunk)
+        response = requests.get(update_url, stream=True)
+        with open(temp_filename, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
 
         print("Atualização baixada com sucesso!")
 
