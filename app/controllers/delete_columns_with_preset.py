@@ -1,15 +1,12 @@
 import pandas as pd
 from app.utils.get_data_json import load_json_data
 
-def delete_columns_with_preset(path, sheet, preset_name):
-    
-    keeps=True
-    
+def delete_columns_with_preset(path, sheet, preset_name, keeps):
+    print(f'Keep value: {keeps}')
+
     try:
-        # Carregar os presets do JSON
         presets = load_json_data()
         
-        # Verificar se o preset existe
         if preset_name not in presets:
             print(f"Preset '{preset_name}' não encontrado no JSON.")
             return f"Preset '{preset_name}' não encontrado no JSON.", [], ""
@@ -36,14 +33,23 @@ def delete_columns_with_preset(path, sheet, preset_name):
                 else:
                     not_found_values.append(value)
             
-            if (found_in_preset and keeps) or (not found_in_preset and not keeps):
-                cols_not_found.append((col, not_found_values))
+            if keeps == 'true':
+                # Remover colunas que não possuem nenhum valor do preset nas 10 primeiras linhas
+                if not found_in_preset:
+                    cols_to_remove.append(col)
+                else:
+                    cols_not_found.append((col, not_found_values))
             else:
-                cols_to_remove.append(col)
+                # Remover colunas que possuem algum valor do preset nas 10 primeiras linhas
+                if found_in_preset:
+                    cols_to_remove.append(col)
+                else:
+                    cols_not_found.append((col, not_found_values))
                 
         if not cols_to_remove:
-            print(f"Nenhuma coluna encontrada para {'' if keeps else 'deletar'} no preset '{preset_name}'.")
-            return f"Nenhuma coluna encontrada para {'' if keeps else 'deletar'} no preset '{preset_name}'.", [], ""
+            action = 'manter' if keeps == 'true' else 'deletar'
+            print(f"Nenhuma coluna encontrada para {action} no preset '{preset_name}'.")
+            return f"Nenhuma coluna encontrada para {action} no preset '{preset_name}'.", [], ""
 
         remaining_columns = [col for col in df.columns if col not in cols_to_remove]
         chunk_size = 10000
@@ -56,9 +62,10 @@ def delete_columns_with_preset(path, sheet, preset_name):
         
         writer.close()
         
-        print(f"{len(cols_to_remove)} Colunas {'mantidas' if keeps else 'deletadas'} com sucesso do arquivo {path} na planilha {sheet}.")
-        status_msg = f"Colunas {'mantidas' if keeps else 'deletadas'} com sucesso do arquivo {path} na planilha {sheet}."
-        found_msg = f"Foram {'mantidas' if keeps else 'deletadas'} {len(cols_to_remove)} colunas de {len(preset_columns)} presentes no JSON."
+        action = 'mantidas' if keeps == True else 'deletadas'
+        print(f"{len(cols_to_remove)} Colunas {action} com sucesso do arquivo {path} na planilha {sheet}.")
+        status_msg = f"Colunas {action} com sucesso do arquivo {path} na planilha {sheet}."
+        found_msg = f"Foram {action} {len(cols_to_remove)} colunas de {len(preset_columns)} presentes no JSON."
         return status_msg, list(cols_to_remove), found_msg
 
     except Exception as e:

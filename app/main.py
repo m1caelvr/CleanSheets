@@ -903,6 +903,7 @@ def main(page: ft.Page):
     async def delete_columns_preset(e):
         nonlocal selected_sheet_to_preset, modal_preset, status_text
 
+        keeps = keeps_value
         selected_sheet = selected_sheet_to_preset
         selected_preset = selected_preset_value
         file_path = file_path_value
@@ -927,7 +928,7 @@ def main(page: ft.Page):
 
             await asyncio.sleep(1)
 
-            status_msg, cols_to_remove, found_msg = delete_columns_with_preset(file_path, selected_sheet, selected_preset)
+            status_msg, cols_to_remove, found_msg = delete_columns_with_preset(file_path, selected_sheet, selected_preset, keeps)
 
             status_text.value = "Quase lá..."
             page.update()
@@ -947,21 +948,54 @@ def main(page: ft.Page):
         await process_deletion()
         page.close(modal_preset)
 
+    def keeps_confirmation_value(e):
+        global keeps_value
+
+        keeps_value = e.control.value
+        continue_button_modal_preset.disabled = False
+
+        page.update()
+        print(keeps_value)
+
     status_text = ft.Text(
         text_align=ft.TextAlign.CENTER,
         weight="bold",
         size=13,
     )
+
+    confirmation_mensage_text = ft.Text(
+        'Você deseja que as colunas do preset sejam mantidas ou deletadas?',
+        text_align=ft.TextAlign.CENTER,
+    )
+
+    keeps_confirmation = ft.RadioGroup(
+        content=ft.Row(
+            controls=[
+                ft.Radio(value='true', label="Manter colunas"),
+                ft.Radio(value='false', label="Deletar colunas"),
+            ],
+            alignment=ft.MainAxisAlignment.CENTER,
+        ),
+        on_change=keeps_confirmation_value,
+    )
+
+    confirmation_mensage = ft.Row(
+        wrap=True,
+        visible=False,
+        controls={
+            confirmation_mensage_text,
+            keeps_confirmation,
+        }
+    )
+    
+    modal_preset = ft.AlertDialog(
+        modal=True
+    )
+
     continue_button_modal_preset = ft.TextButton(
         "Seguir",
         disabled=True,
         on_click=delete_columns_preset,
-    )
-
-    confirmation_mensage = ft.Text(visible=False, text_align=ft.TextAlign.CENTER)
-    
-    modal_preset = ft.AlertDialog(
-        modal=True
     )
     
     def selected_preset(e):
@@ -976,21 +1010,22 @@ def main(page: ft.Page):
         preset_columns_quantity = len(preset_columns)
         
         confirmation_mensage.visible = True 
-        confirmation_mensage.value = f'Quando clicado em "Seguir", serão removidas {preset_columns_quantity} colunas dessa planilha.'
-        continue_button_modal_preset.disabled = False
+        # confirmation_mensage_text.value = f'Quando clicado em "Seguir", serão removidas {preset_columns_quantity} colunas dessa planilha.'
         
         page.update()
     
     preset_dropdown_available = ft.Dropdown(
         label="Selecione o preset",
         border_color=ft.colors.OUTLINE_VARIANT,
-        text_size=14,
-        visible=False,
         on_change=selected_preset,
+        text_size=14,
     )
     
     preset_contain = ft.Container(
+        visible=False,
+        padding=ft.padding.all(0),
         content=preset_dropdown_available,
+        border_radius=ft.border_radius.all(4),
         margin=ft.Margin(top=10, bottom=15, left=0, right=0),
         shadow=ft.BoxShadow(
             spread_radius=1,
@@ -1015,7 +1050,7 @@ def main(page: ft.Page):
             presets_available.append(preset_container)
             
         preset_dropdown_available.options = presets_available
-        preset_dropdown_available.visible = True
+        preset_contain.visible = True
 
 
     selected_sheet_to_preset = None
@@ -1029,7 +1064,7 @@ def main(page: ft.Page):
         SUPPORTED_EXTENSIONS = ['xlsx', 'xls']
         
         preset_dropdown_available.value = ''
-        preset_dropdown_available.visible = False
+        preset_contain.visible = False
 
         if e.files:
             selected_file = e.files[0]

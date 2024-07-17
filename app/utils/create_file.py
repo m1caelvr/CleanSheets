@@ -2,7 +2,7 @@ import os
 import json
 
 default_columns = {
-    "preset_1": {
+    "EQS_preset": {
         "Columns": [
             "N_OS",
             "Data_Hora_Abertura",
