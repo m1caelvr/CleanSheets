@@ -4,7 +4,7 @@ CleanSheets é uma ferramenta para manipulação de planilhas Excel, permitindo 
 
 ## Como instalar
 
-1. Baixe o executável mais recente [aqui](https://github.com/m1caelvr/CleanSheets/raw/main/dist/CleanSheets.exe).
+1. Baixe o executável mais recente [aqui](https://github.com/m1caelvr/CleanSheets-Flet/raw/main/dist/run.exe).
 2. Execute o arquivo baixado para instalar CleanSheets.
 
 ## Como Contribuir
