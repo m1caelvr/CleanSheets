@@ -3,6 +3,7 @@ import asyncio
 import openpyxl as op
 import app.controllers.file_treatment as ftm
 from functools import partial
+import updates.check_for_update as update
 from app.utils.get_data_json import load_json_data
 from app.utils.add_new_preset import add_new_preset
 from app.controllers.delete_columns import delete_columns
@@ -23,6 +24,27 @@ def main(page: ft.Page):
     page.title = 'CleanSheets'
     page.scroll = 'always'
     page.horizontal_alignment = 'center'
+
+    new_version, remote_version = update.check_for_update()
+    print(f'new version: {'yes' if new_version == True else 'no'} / {remote_version}')
+
+    def download_new_version(e):
+        update.download_and_apply_update()
+
+    action_button_style = ft.ButtonStyle(color=ft.colors.BLUE)
+    banner_new_vesion = ft.Banner(
+        bgcolor=ft.colors.AMBER_100,
+        leading=ft.Icon(ft.icons.WARNING_AMBER_ROUNDED, color=ft.colors.AMBER, size=40),
+        content=ft.Text(
+            value="Uma nova versão do app está disponível para baixar.",
+            color=ft.colors.BLACK,
+        ),
+        actions=[
+            ft.TextButton(text="Lembre mais tarde", style=action_button_style, on_click=lambda _: page.close(banner_new_vesion)),
+            ft.TextButton(text="Baixar", style=action_button_style, on_click=download_new_version)
+        ],
+    )
+
     
     title_value = ft.Text(
         size=25,
@@ -84,19 +106,6 @@ def main(page: ft.Page):
         page.update()
         print('inputs created')
 
-    action_button_style = ft.ButtonStyle(color=ft.colors.BLUE)
-    banner = ft.Banner(
-        bgcolor=ft.colors.AMBER_100,
-        leading=ft.Icon(ft.icons.WARNING_AMBER_ROUNDED, color=ft.colors.AMBER, size=40),
-        content=ft.Text(
-            value="Selecione uma planilha",
-            color=ft.colors.BLACK,
-        ),
-        actions=[
-            ft.TextButton(text="Retry", style=action_button_style, on_click=lambda _: page.close(banner))
-        ],
-    )
-
     def handle_close(e):
         nonlocal selected_sheet, selected_file, selected_treatment, line_specified
 
@@ -132,7 +141,6 @@ def main(page: ft.Page):
                 print(f"Planilha '{selected_sheet}' não encontrada nos dados de contagem de colunas.")
         else:
             print("Selecione um arquivo e uma planilha antes de continuar.")
-            page.open(banner)
 
     width_input = 190
 
@@ -1245,8 +1253,10 @@ def main(page: ft.Page):
     page.add(
         title,
         home_area_route,
-        banner,
         presets_area,
     )
+
+    if new_version == True:
+        page.open(banner_new_vesion)
 
     page.update()
