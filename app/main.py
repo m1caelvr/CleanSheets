@@ -1,4 +1,5 @@
 import flet as ft
+import asyncio
 import openpyxl as op
 import app.controllers.file_treatment as ftm
 from functools import partial
@@ -10,6 +11,7 @@ from app.utils.add_column_to_json import add_column_to_json
 from app.data.json_handler import ensure_documents_json_file
 from app.utils.remove_preset_from_json import remove_preset_from_json
 from app.utils.remove_column_from_json import remove_column_from_json
+from app.controllers.delete_columns_with_preset import delete_columns_with_preset
 from app.utils.update_preset_in_json import update_preset_exist_in_json, update_preset_in_json 
 
 def main(page: ft.Page):
@@ -524,8 +526,8 @@ def main(page: ft.Page):
     def disabled_delete_preset(e):
         value_agree_button = agree_box.value
             
-        delet_preset_button_agree.disabled = False if value_agree_button == True else True
-        delet_preset_button_agree.opacity = 1 if value_agree_button == True else 0.5
+        delete_preset_button_agree.disabled = False if value_agree_button == True else True
+        delete_preset_button_agree.opacity = 1 if value_agree_button == True else 0.5
         
         page.update()
         
@@ -544,7 +546,7 @@ def main(page: ft.Page):
         on_change=disabled_delete_preset,
     )
     
-    delet_preset_button_agree = ft.Container(
+    delete_preset_button_agree = ft.Container(
         content=ft.Text(
             "Deletar",
             color=ft.colors.RED_400,
@@ -564,7 +566,7 @@ def main(page: ft.Page):
             controls=[
                 ft.Row(
                     controls=[
-                        delet_preset_button_agree
+                        delete_preset_button_agree
                     ],
                     width=initial_width,
                 ),
@@ -649,7 +651,7 @@ def main(page: ft.Page):
         on_change=handle_preset_edit_change,
     )
     
-    delet_preset_button = ft.Container(
+    delete_preset_button = ft.Container(
         content=ft.Text(
             "Deletar",
             color=ft.colors.RED_400,
@@ -680,12 +682,12 @@ def main(page: ft.Page):
         opacity=0.4,
     )
     
-    delet_preset_button = [
+    delete_preset_button = [
         ft.Column(
             controls=[
                 ft.Row(
                     controls=[
-                        delet_preset_button,
+                        delete_preset_button,
                         alter_preset_name_button,
                     ],
                     spacing=10,
@@ -710,7 +712,7 @@ def main(page: ft.Page):
             alignment=ft.MainAxisAlignment.CENTER,
         ),
         content=preset_to_edit,
-        actions=delet_preset_button,
+        actions=delete_preset_button,
     )
     
     def open_modal_edit_preset(preset, e=None):
@@ -721,7 +723,7 @@ def main(page: ft.Page):
         preset_to_edit.value = preset
         preset_to_edit.error_text = None
         edit_preset_modal.content = preset_to_edit
-        edit_preset_modal.actions = delet_preset_button
+        edit_preset_modal.actions = delete_preset_button
         
         
         page.open(edit_preset_modal)
@@ -887,27 +889,84 @@ def main(page: ft.Page):
             presets.append(checkbox_container)
         presets_row.controls = presets
         page.update()
-    
-    confirmation_mensage = ft.Text(visible=False, text_align=ft.TextAlign.CENTER)
-    continue_button_modal_preset = ft.TextButton("Seguir", disabled=True)
+        
+    progress_status_bar = ft.Container(
+        margin=ft.Margin(top=15, bottom=0, left=0, right=0),
+        content=ft.ProgressBar(
+            border_radius=ft.border_radius.all(0),
+            bgcolor=ft.colors.TRANSPARENT,
+            width=initial_width,
+            color="#eeeeee",
+        )
+    )
+        
+    async def delete_columns_preset(e):
+        nonlocal selected_sheet_to_preset, modal_preset, status_text
 
-    modal_preset = ft.AlertDialog(
-        modal=True,
-        title=ft.Text("Planilhas Disponíveis", size=20),
-        actions=[
-            ft.Row(
-                controls=[
-                    ft.TextButton("Cancelar", on_click=lambda _: page.close(modal_preset)),
-                    continue_button_modal_preset,
-                ],
-                width=initial_width,
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-            ),
+        selected_sheet = selected_sheet_to_preset
+        selected_preset = selected_preset_value
+        file_path = file_path_value
+        
+        status = ft.Row(
+            spacing=10,
+            wrap=True,
+            controls=[
+                status_text,
+                progress_status_bar,
+            ]
+        )
+
+        modal_preset.title = ft.Text("Preparando...", size=20)
+        modal_preset.content = status
+        modal_preset.actions = []
+        page.update()
+
+        async def process_deletion():
+            status_text.value = f"Aguarde, estamos processando os dados..."
+            page.update()
+
+            await asyncio.sleep(1)
+
+            status_msg, cols_to_remove, found_msg = delete_columns_with_preset(file_path, selected_sheet, selected_preset)
+
+            status_text.value = "Quase lá..."
+            page.update()
             
-        ],
+            await asyncio.sleep(2)
+
+            if cols_to_remove:
+                status_text.value = found_msg
+                page.update()
+                
+                await asyncio.sleep(4)
+            else:
+                status_text.value = status_msg
+
+            page.update()
+
+        await process_deletion()
+        page.close(modal_preset)
+
+    status_text = ft.Text(
+        text_align=ft.TextAlign.CENTER,
+        weight="bold",
+        size=13,
+    )
+    continue_button_modal_preset = ft.TextButton(
+        "Seguir",
+        disabled=True,
+        on_click=delete_columns_preset,
+    )
+
+    confirmation_mensage = ft.Text(visible=False, text_align=ft.TextAlign.CENTER)
+    
+    modal_preset = ft.AlertDialog(
+        modal=True
     )
     
     def selected_preset(e):
+        global selected_preset_value
+        
         selected_preset_value = e.control.value
         preset = load_json_data()
 
@@ -962,7 +1021,7 @@ def main(page: ft.Page):
     selected_sheet_to_preset = None
 
     def preset_tratment(e: ft.FilePickerResultEvent):
-        nonlocal selected_file
+        global file_path_value
 
         preset = load_json_data()
         preset_columns = preset.get('Columns', [])
@@ -1031,6 +1090,18 @@ def main(page: ft.Page):
                 )
 
                 nonlocal modal_preset
+                
+                modal_preset.title=ft.Text("Planilhas Disponíveis", size=20)
+                modal_preset.actions=[
+                    ft.Row(
+                        controls=[
+                            ft.TextButton("Cancelar", on_click=lambda _: page.close(modal_preset)),
+                            continue_button_modal_preset,
+                        ],
+                        width=initial_width,
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    ),
+                ]
                 
                 modal_preset.content = radio_group
                 page.open(modal_preset)

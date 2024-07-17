@@ -11,7 +11,7 @@ def file_treatment(file):
         row_counts = {sheet: wb[sheet].max_row for sheet in sheetnames}
         wb.close()
 
-        print(f'rows: {row_counts} / {column_counts}')
+        # print(f'rows: {row_counts} / {column_counts}')
         
         return sheetnames, column_counts
     except Exception as e:
