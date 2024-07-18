@@ -320,6 +320,29 @@ def main(page: ft.Page):
         text="Upload",
     )
 
+    def import_preset():
+        ...
+        
+    def export_preset():
+        ...
+
+    import_and_export = ft.Container(
+        content=ft.Row(
+            controls=[
+                ft.TextButton(
+                    icon=ft.icons.DRIVE_FOLDER_UPLOAD_OUTLINED,
+                    text="Import preset",
+                    on_click=lambda _: import_preset(),
+                ),
+                ft.TextButton(
+                    icon=ft.icons.SEND_TIME_EXTENSION_OUTLINED,
+                    text="Export preset",
+                    on_click=lambda _: export_preset(),
+                ),
+            ],
+        ),
+        width=initial_width,
+    )
 
     def on_radio_change(e):
         delete_button.disabled = False
@@ -835,6 +858,7 @@ def main(page: ft.Page):
     presets_column = ft.Column(
         visible=False,
         controls=[
+            import_and_export,
             presets_names_area,
             edit_preset,
             presets_row,
