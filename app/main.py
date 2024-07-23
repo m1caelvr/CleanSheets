@@ -49,9 +49,9 @@ def main(page: ft.Page):
 
     
     title_value = ft.Text(
-        size=25,
+        size=28,
         weight="bold",
-        value='CleanSheets, XLS Minifier',
+        value='CleanSheets',
     )
     title = ft.Row(
         controls=[title_value],
@@ -321,12 +321,28 @@ def main(page: ft.Page):
         width=initial_width,
         text="Upload",
     )
+    
+    returned_mensagem = ft.Text()
+    
+    banner_returned_import = ft.Banner(
+        bgcolor=ft.colors.OUTLINE_VARIANT,
+        content=returned_mensagem,
+        actions=[
+            ft.TextButton(text="Fechar", on_click=lambda _: page.close(banner_returned_import)),
+        ],
+    )
 
     def import_preset(e: ft.FilePickerResultEvent):
-        file_with_preset = e.files[0].path
-        print(file_with_preset)
+        try:
+            file_with_preset = e.files[0].path
+            if file_with_preset:
+                feedback_mensage = import_preset_exported(file_with_preset)
+        except Exception:
+            feedback_mensage = 'Nenhum arquivo selecionado.'
 
-        import_preset_exported(file_with_preset)
+        returned_mensagem.value = feedback_mensage
+        page.open(banner_returned_import)
+        
         create_presets_names()
         page.update()
 
@@ -336,6 +352,7 @@ def main(page: ft.Page):
     def export_preset(e):
         presets_to_export = presets_to_export_group
         create_file_to_export(presets_to_export)
+        page.close(export_preset_modal)
 
     presets_to_export_area = ft.Row(wrap=True, visible=False)
 
@@ -659,7 +676,7 @@ def main(page: ft.Page):
         page.update()
 
     EQS_title_value = ft.Text(
-        value='Presets area',
+        value='Presets área',
         size=20,
     )
 
@@ -879,7 +896,6 @@ def main(page: ft.Page):
         preset_to_edit.error_text = None
         edit_preset_modal.content = preset_to_edit
         edit_preset_modal.actions = delete_preset_button
-        
         
         page.open(edit_preset_modal)
         page.update()
