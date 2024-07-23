@@ -12,6 +12,8 @@ from app.utils.add_column_to_json import add_column_to_json
 from app.data.json_handler import ensure_documents_json_file
 from app.utils.remove_preset_from_json import remove_preset_from_json
 from app.utils.remove_column_from_json import remove_column_from_json
+from app.share_presets.import_preset_exported import import_preset_exported
+from app.share_presets.create_file_to_export import create_file_to_export
 from app.controllers.delete_columns_with_preset import delete_columns_with_preset
 from app.utils.update_preset_in_json import update_preset_exist_in_json, update_preset_in_json 
 
@@ -26,7 +28,7 @@ def main(page: ft.Page):
     page.horizontal_alignment = 'center'
 
     new_version, remote_version = update.check_for_update()
-    print(f'new version: {'yes' if new_version == True else 'no'} / {remote_version}')
+    # print(f'new version: {'yes' if new_version == True else 'no'} / {remote_version}')
 
     def download_new_version(e):
         update.download_and_apply_update()
@@ -320,24 +322,146 @@ def main(page: ft.Page):
         text="Upload",
     )
 
-    def import_preset():
-        ...
+    def import_preset(e: ft.FilePickerResultEvent):
+        file_with_preset = e.files[0].path
+        print(file_with_preset)
+
+        import_preset_exported(file_with_preset)
+        create_presets_names()
+        page.update()
+
+    file_imported = ft.FilePicker(on_result=import_preset)
+    page.overlay.append(file_imported)
+
+    def export_preset(e):
+        presets_to_export = presets_to_export_group
+        create_file_to_export(presets_to_export)
+
+    presets_to_export_area = ft.Row(wrap=True, visible=False)
+
+    def presets_to_export():
+        global presets_to_export_group
+
+        presets_to_export_group = []
+
+        def add_preset_to_export_group(e):
+            preset_selected = e.control.label
+
+            if e.control.value:
+                if preset_selected not in presets_to_export_group:
+                    presets_to_export_group.append(preset_selected)
+            else:
+                if preset_selected in presets_to_export_group:
+                    presets_to_export_group.remove(preset_selected)
+
+            export_preset_button.disabled = False if presets_to_export_group else True
+
+            print(f'presets to export: {presets_to_export_group}')
+            page.update()
+
+        presets_to_export_elements = []
+        presets_value = get_presets_names()
         
-    def export_preset():
-        ...
+        for i, preset in enumerate(presets_value):
+            checkbox = ft.Checkbox(
+                label=f'{preset}',
+                value=False,
+                width=195,
+                height=30,
+                on_change=add_preset_to_export_group,
+            )
+            preset_container = ft.Container(
+                content=checkbox,
+                padding=ft.padding.all(5),
+                border=ft.border.all(1, ft.colors.OUTLINE_VARIANT),
+                border_radius=ft.border_radius.all(7),
+            )
+            presets_to_export_elements.append(preset_container)
+        presets_to_export_area.controls = presets_to_export_elements
+        presets_to_export_area.visible = True
+        page.update()
+        
+    export_preset_button = ft.TextButton("Exportar", on_click=export_preset, disabled=True)
+
+    def def_all_presets_to_export():
+        global presets_to_export_group
+
+        presets_to_export_group = []
+        presets_group = get_presets_names()
+
+        for i, preset in enumerate(presets_group):
+            presets_to_export_group.append(preset)
+
+    def def_preset_to_export(e):
+        options_changed_value = e.control.value
+
+        if options_changed_value == 'all':
+            def_all_presets_to_export()
+            export_preset_button.disabled = False
+            presets_to_export_area.visible = False
+        else:
+            presets_to_export()
+            export_preset_button.disabled = True
+
+        page.update()
+
+    export_preset_modal = ft.AlertDialog(
+        modal=True,
+        title=ft.Row(
+            controls=[
+                ft.Text("Exportar presets", size=20),
+            ],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            wrap=True,
+        ),
+        content=ft.Row(
+            controls=[
+                ft.RadioGroup(
+                    content=ft.Row(
+                        controls=[
+                            ft.Radio(value="all", label="Exportar todos", key='all'),
+                            ft.Radio(value="especifics", label="Personalizar"),
+                        ]
+                    ),
+                    value='all',
+                    on_change=def_preset_to_export,
+                ),
+                presets_to_export_area
+            ],
+            wrap=True,
+        ),
+        actions=[
+            ft.Row(
+                controls=[
+                    ft.TextButton("Cancelar", on_click=lambda _: page.close(export_preset_modal)),
+                    export_preset_button,
+                ],
+                width=initial_width,
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            ),
+        ],
+    )
+
+    def open_export_preset(e):
+        def_all_presets_to_export()
+        
+        export_preset_button.disabled = False
+
+        page.open(export_preset_modal)
+        page.update()
 
     import_and_export = ft.Container(
         content=ft.Row(
             controls=[
                 ft.TextButton(
                     icon=ft.icons.DRIVE_FOLDER_UPLOAD_OUTLINED,
-                    text="Import preset",
-                    on_click=lambda _: import_preset(),
+                    text="Importar preset",
+                    on_click=lambda _: file_imported.pick_files(),
                 ),
                 ft.TextButton(
                     icon=ft.icons.SEND_TIME_EXTENSION_OUTLINED,
                     text="Export preset",
-                    on_click=lambda _: export_preset(),
+                    on_click=open_export_preset,
                 ),
             ],
         ),
@@ -543,7 +667,7 @@ def main(page: ft.Page):
         border=ft.border.all(1, ft.colors.OUTLINE_VARIANT),
         border_radius=ft.border_radius.all(10),
         padding=ft.padding.all(12),
-        margin=ft.margin.all(0),
+        margin=ft.Margin(left=0, top=0, right=0, bottom=10),
         on_click=open_modal,
         content=ft.Row(
             alignment=ft.MainAxisAlignment.CENTER,
@@ -913,7 +1037,7 @@ def main(page: ft.Page):
                 shadow=ft.BoxShadow(
                     spread_radius=1,
                     blur_radius=10,
-                    color='#050505',
+                    color='#7F8C8D',
                     offset=ft.Offset(0, 0),
                     blur_style=ft.ShadowBlurStyle.OUTER,
                 ),

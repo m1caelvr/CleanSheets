@@ -34,13 +34,11 @@ def delete_columns_with_preset(path, sheet, preset_name, keeps):
                     not_found_values.append(value)
             
             if keeps == 'true':
-                # Remover colunas que não possuem nenhum valor do preset nas 10 primeiras linhas
                 if not found_in_preset:
                     cols_to_remove.append(col)
                 else:
                     cols_not_found.append((col, not_found_values))
             else:
-                # Remover colunas que possuem algum valor do preset nas 10 primeiras linhas
                 if found_in_preset:
                     cols_to_remove.append(col)
                 else:

@@ -1,5 +1,5 @@
-import json
 import os
+import json
 from app.utils.get_path_json import get_path_json
 
 def load_json_data(file_path):
