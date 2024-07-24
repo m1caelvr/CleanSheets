@@ -7,11 +7,13 @@ def check_for_update():
     local_version_file = "version.txt"
     
     try:
-        if not os.path.exists(local_version_file):
-            local_version = "0.0.0"
-        else:
-            with open(local_version_file, "r") as f:
-                local_version = f.read().strip()
+        # if not os.path.exists(local_version_file):
+        #     local_version = "0.0.0"
+        # else:
+        #     with open(local_version_file, "r") as f:
+        #         local_version = f.read().strip()
+
+        local_version = "0.1.1"
 
         response = requests.get(remote_version_url)
         remote_version = response.text.strip()
@@ -19,11 +21,11 @@ def check_for_update():
         if remote_version > local_version:
             print("Nova atualização disponível!")
             new_version = True
-            return new_version, remote_version
+            return new_version, local_version, remote_version
         else:
             print("Você já está na versão mais recente.")
             new_version = False
-            return new_version, remote_version
+            return new_version, local_version, remote_version
     
     except Exception as e:
         print(f"Erro ao verificar atualização: {e}")

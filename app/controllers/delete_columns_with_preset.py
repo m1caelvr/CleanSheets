@@ -4,22 +4,18 @@ from app.utils.get_data_json import load_json_data
 
 def remove_hidden_rows_and_columns(df, ws):
     hidden_cols = set()
-    
-    rows_quantity = 0
-    column_quantity = 0
 
-    for row in ws.iter_rows():
-        rows_quantity += 1
-        if rows_quantity > 1510:
-            break
-        
+    rows_quantity = len(ws['A'])
+    if rows_quantity > 1510:
+        rows_quantity = 1510
+    
+    column_quantity = 0
     for col in ws.column_dimensions:
         column_quantity += 1
-        
         if ws.column_dimensions[col].hidden:
-            hidden_cols.add(col)
+            hidden_cols.add(ws[col + '1'].column - 1)
 
-    visible_cols = df.drop(hidden_cols, axis=1, errors='ignore')
+    visible_cols = df.drop(df.columns[list(hidden_cols)], axis=1, errors='ignore')
 
     return visible_cols, rows_quantity, column_quantity
 
@@ -98,15 +94,11 @@ def process_with_pandas(path, sheet, preset_columns, keeps, ws):
             return f"Nenhuma coluna encontrada para {action} no preset.", [], ""
 
         remaining_columns = [col for col in df.columns if col not in cols_to_remove]
-        chunk_size = 10000
-        writer = pd.ExcelWriter(path, engine='openpyxl', mode='a', if_sheet_exists='replace')
 
-        for start_row in range(0, len(df), chunk_size):
-            df_chunk = df.iloc[start_row:start_row + chunk_size, :][remaining_columns]
-            if start_row == 0:
-                df_chunk.to_excel(writer, sheet_name=sheet, index=False)
-        
-        writer.close()
+        df = df[remaining_columns]
+
+        with pd.ExcelWriter(path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+            df.to_excel(writer, sheet_name=sheet, index=False)
         
         action = 'mantidas' if keeps == 'true' else 'deletadas'
         print(f"{len(cols_to_remove)} Colunas {action} com sucesso do arquivo {path} na planilha {sheet}.")

@@ -20,14 +20,14 @@ from app.utils.update_preset_in_json import update_preset_exist_in_json, update_
 def main(page: ft.Page):
     initial_width = 550
     initial_height = 600
+    page.window.always_on_top = True
     page.window.width = initial_width
     page.window.height = initial_height
-    page.window.always_on_top = True
     page.title = 'CleanSheets'
     page.scroll = 'always'
     page.horizontal_alignment = 'center'
 
-    new_version, remote_version = update.check_for_update()
+    new_version, local_version, remote_version = update.check_for_update()
     # print(f'new version: {'yes' if new_version == True else 'no'} / {remote_version}')
 
     def download_new_version(e):
@@ -35,15 +35,16 @@ def main(page: ft.Page):
 
     action_button_style = ft.ButtonStyle(color=ft.colors.BLUE)
     banner_new_vesion = ft.Banner(
-        bgcolor=ft.colors.AMBER_100,
-        leading=ft.Icon(ft.icons.WARNING_AMBER_ROUNDED, color=ft.colors.AMBER, size=40),
+        bgcolor=ft.colors.PRIMARY_CONTAINER,
+        leading=ft.Icon(ft.icons.WARNING_AMBER_ROUNDED, size=40),
         content=ft.Text(
-            value="Uma nova versão do app está disponível para baixar.",
-            color=ft.colors.BLACK,
+            value=f"Uma nova versão do app está disponível para baixar.\n{local_version} -> {remote_version}",
+            weight="bold",
+            color=ft.colors.ON_PRIMARY_CONTAINER,
         ),
         actions=[
-            ft.TextButton(text="Lembre mais tarde", style=action_button_style, on_click=lambda _: page.close(banner_new_vesion)),
-            ft.TextButton(text="Baixar", style=action_button_style, on_click=download_new_version)
+            ft.TextButton(text="Lembre mais tarde", on_click=lambda _: page.close(banner_new_vesion)),
+            ft.TextButton(text="Baixar", on_click=download_new_version)
         ],
     )
 
@@ -80,7 +81,7 @@ def main(page: ft.Page):
     def update_selected_columns():
         selected_columns = [cb.content.label for cb in checkboxes if cb.content.value]
         if selected_columns:
-            selected_columns_text.value = f'Colunas selecionadas:\n' + '  |  '.join(selected_columns)
+            selected_columns_text.value = f'{len(selected_columns)} colunas selecionadas.'
             selected_columns_container.visible = True
         else:
             selected_columns_container.visible = False
@@ -129,7 +130,6 @@ def main(page: ft.Page):
             
             if selected_sheet in column_counts:
                 line_specified = number_input.value
-                print(line_specified)
 
                 selected_columns = ftm.get_columns_from_sheet(selected_file, selected_sheet, selected_treatment, line_specified)
                 
@@ -183,7 +183,6 @@ def main(page: ft.Page):
             number_input.visible = False
             page.update()
         page.update()
-        print(f'i: {i} / visible: {number_input.visible}')
 
     def on_dropdown_change(e):
         nonlocal selected_treatment, value_line, number_input
@@ -526,10 +525,15 @@ def main(page: ft.Page):
         ]
         result_action.visible = True
         result_container.visible = False
+        progress_deleting.visible = False
         
         page.update()
 
     def columns_to_delete():
+        delete_button.disabled = True
+        progress_deleting.visible = True
+        page.update()
+
         selected_columns = [cb.content.label.split(' - ')[0] for cb in checkboxes if cb.content.value]
         selected_columns = list(map(int, selected_columns))
         if selected_columns:
@@ -557,6 +561,17 @@ def main(page: ft.Page):
         disabled=True,
     )
 
+    progress_deleting = ft.Container(
+        margin=ft.Margin(top=15, bottom=0, left=0, right=0),
+        visible=False,
+        content=ft.ProgressBar(
+            border_radius=ft.border_radius.all(0),
+            bgcolor=ft.colors.TRANSPARENT,
+            width=initial_width,
+            color=ft.colors.OUTLINE_VARIANT,
+        )
+    )
+
     selected_columns_text = ft.Text(text_align=ft.TextAlign.CENTER)
     selected_columns_container = ft.Container(
         content=ft.Column(
@@ -565,6 +580,7 @@ def main(page: ft.Page):
                 selected_columns_text,
                 radio_group_columns,
                 delete_button,
+                progress_deleting,
             ],
             alignment=ft.MainAxisAlignment.START,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,

@@ -3,8 +3,8 @@ Data_Hora_Abertura
 Denominacao_Site
 UF
 Descricao_Tipo_Servico
+Data_Hora_Faturamento
 Denominacao_Prioridade
 Descricao_OS
 Textos_OS
 Denominacao_Estado_OS
-Data_Hora_Faturamento
