@@ -20,7 +20,7 @@ from app.utils.update_preset_in_json import update_preset_exist_in_json, update_
 def main(page: ft.Page):
     initial_width = 550
     initial_height = 600
-    page.window.always_on_top = True
+    # page.window.always_on_top = True
     page.window.width = initial_width
     page.window.height = initial_height
     page.title = 'CleanSheets'
