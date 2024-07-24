@@ -1,7 +1,5 @@
 import json
-import os
 from pathlib import Path
-from app.utils.get_path_json import get_path_json
 from app.utils.get_data_json import load_json_data
 
 def create_file_to_export(presets_to_export):

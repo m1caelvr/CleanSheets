@@ -1,9 +1,9 @@
 import flet as ft
 import asyncio
 import openpyxl as op
+import updates.check_for_update as update
 import app.controllers.file_treatment as ftm
 from functools import partial
-import updates.check_for_update as update
 from app.utils.get_data_json import load_json_data
 from app.utils.add_new_preset import add_new_preset
 from app.controllers.delete_columns import delete_columns
@@ -1127,7 +1127,6 @@ def main(page: ft.Page):
         continue_button_modal_preset.disabled = False
 
         page.update()
-        print(keeps_value)
 
     status_text = ft.Text(
         text_align=ft.TextAlign.CENTER,
