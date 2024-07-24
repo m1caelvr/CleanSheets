@@ -13,4 +13,4 @@ Contribuições são bem-vindas! Sinta-se à vontade para abrir um pull request 
 
 ## Licença
 
-Este projeto é licenciado sob a [Licença MIT]().
+Este projeto é licenciado sob a [Licença MIT](./LICENSE).
