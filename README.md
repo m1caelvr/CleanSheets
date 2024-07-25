@@ -2,7 +2,7 @@
 
 CleanSheets é uma ferramenta para manipulação de planilhas Excel, permitindo a seleção e remoção de colunas de forma interativa.
 
-## Como instalar
+### Como instalar
 
 1. Baixe o executável mais recente [aqui](https://github.com/m1caelvr/CleanSheets/raw/main/dist/Cleansheets.exe).
 2. Execute o arquivo baixado para instalar CleanSheets.
@@ -16,8 +16,8 @@ CleanSheets é uma ferramenta para manipulação de planilhas Excel, permitindo 
 
 ### Selecionar Colunas a Serem Removidas
 
-1. Após carregado, selecione a planilha desejada e a linha dos títulos ds colunas de forma manual ou automática.
-2. Clcando em seguir, você verá uma lista das colunas presentes na planilha.
+1. Após carregado, selecione a planilha desejada e a linha dos títulos das colunas de forma manual ou automática.
+2. Clicando em seguir, você verá uma lista das colunas presentes na planilha.
 3. Agora só basta selecionar as colunas que deseja deletar ou manter.<br>
    (`Importante a atenção que caso escolhido manter, todas as outras colunas que não estiverem listadas, serão deletadas.`)
 
@@ -25,7 +25,7 @@ CleanSheets é uma ferramenta para manipulação de planilhas Excel, permitindo 
 
 1. Clique em `Deletar colunas` e o CleanSheets processará a planilha e removerá as colunas indesejadas conforme sua seleção.
 
-## Aba presets
+### Aba presets
 
 - Nesta aba você poderá deletar as colunas com base no preset escolhido e importar e exportar esses dados.
 
@@ -60,11 +60,11 @@ Para mais informações ou suporte adicional, entre em contato com o desenvolved
 - **E-mail:** micael.vitor222@gmail.com
 - **GitHub:** [CleanSheets Repository](https://github.com/m1caelvr/CleanSheets)
 
-## Como Contribuir
+# Como Contribuir
 
 Contribuições são bem-vindas! Sinta-se à vontade para abrir um pull request ou reportar problemas na seção de issues.
 
-## Licença
+# Licença
 
 Este projeto é licenciado sob a [Licença MIT](./LICENSE).
 
