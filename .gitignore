@@ -41,3 +41,8 @@ target/
 site/
 
 *.sqlite3
+
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
